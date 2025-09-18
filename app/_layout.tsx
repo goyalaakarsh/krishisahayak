@@ -1,24 +1,50 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+import './globals.css';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <>
+      <StatusBar style="dark" backgroundColor="#ffffff" />
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen 
+          name="chat-interface" 
+          options={{ 
+            headerShown: true, 
+            title: 'AI Assistant',
+            headerStyle: {
+              backgroundColor: '#ffffff',
+              borderBottomWidth: 1,
+              borderBottomColor: '#e5e7eb',
+            },
+            headerTitleStyle: {
+              fontSize: 18,
+              fontWeight: 'bold',
+              color: '#111827',
+            },
+            headerTintColor: '#059669',
+          }} 
+        />
+        <Stack.Screen 
+          name="weather-forecast" 
+          options={{ 
+            headerShown: true, 
+            title: 'Weather Forecast',
+            headerStyle: {
+              backgroundColor: '#ffffff',
+              borderBottomWidth: 1,
+              borderBottomColor: '#e5e7eb',
+            },
+            headerTitleStyle: {
+              fontSize: 18,
+              fontWeight: 'bold',
+              color: '#111827',
+            },
+            headerTintColor: '#059669',
+          }} 
+        />
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    </>
   );
 }
