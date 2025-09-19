@@ -110,7 +110,7 @@ class GeocodingService {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'Farmula/1.0', // Required by Nominatim
+          'User-Agent': 'KrishiSahayak/1.0', // Required by Nominatim
         },
       });
 
@@ -147,7 +147,7 @@ class GeocodingService {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'Farmula/1.0',
+          'User-Agent': 'KrishiSahayak/1.0',
         },
       });
 

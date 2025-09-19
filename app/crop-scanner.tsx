@@ -3,16 +3,17 @@ import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Dimensions,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import Text from './components/Text';
+import { chatApiService } from './utils/chatApiService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -90,14 +91,55 @@ export default function CropScanner() {
   const analyzeImage = async () => {
     if (!capturedImage) return;
 
-    // Navigate to chat interface with image data
-    router.push({
-      pathname: '/chat-interface',
-      params: {
-        imageUri: capturedImage,
-        analyzeMessage: 'Analyze this plant for diseases and pests'
-      }
-    });
+    try {
+      setIsAnalyzing(true);
+      console.log('Analyzing image with real API...');
+      
+      // Call the real API for image analysis
+      const analysisMessage = 'Analyze this plant image for diseases, pests, and provide detailed recommendations';
+      const apiResponse = await chatApiService.sendImageAnalysis(capturedImage, analysisMessage);
+      
+      console.log('Received analysis response:', apiResponse);
+      
+      // Navigate to chat interface with the real analysis result
+      router.push({
+        pathname: '/chat-interface',
+        params: {
+          imageUri: capturedImage,
+          analyzeMessage: analysisMessage,
+          analysisResult: apiResponse.response
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error analyzing image:', error);
+      
+      // Show error and navigate with fallback
+      Alert.alert(
+        'Analysis Error', 
+        'Failed to analyze the image. You can still send it to chat for manual analysis.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          },
+          {
+            text: 'Send to Chat',
+            onPress: () => {
+              router.push({
+                pathname: '/chat-interface',
+                params: {
+                  imageUri: capturedImage,
+                  analyzeMessage: 'Analyze this plant for diseases and pests'
+                }
+              });
+            }
+          }
+        ]
+      );
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const toggleCameraFacing = () => {

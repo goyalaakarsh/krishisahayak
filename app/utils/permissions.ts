@@ -195,9 +195,9 @@ export class PermissionManager {
     };
 
     const permissionDescriptions = {
-      microphone: 'Farmula needs microphone access to enable voice input for easier communication with the AI assistant.',
-      camera: 'Farmula needs camera access to scan crops and identify diseases, pests, and plant health issues.',
-      location: 'Farmula needs location access to provide accurate weather forecasts and location-specific farming advice.',
+      microphone: 'KrishiSahayak needs microphone access to enable voice input for easier communication with the AI assistant.',
+      camera: 'KrishiSahayak needs camera access to scan crops and identify diseases, pests, and plant health issues.',
+      location: 'KrishiSahayak needs location access to provide accurate weather forecasts and location-specific farming advice.',
     };
 
     Alert.alert(

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Platform, ScrollView, TouchableOpacity, View } from 'react-native';
+import Text from '../components/Text';
 
 export default function Profile() {
   const [user] = useState({
@@ -58,11 +59,11 @@ export default function Profile() {
       onPress: () => Alert.alert('Help & Support', 'Help & support feature coming soon!')
     },
     {
-      title: 'About Farmula',
+      title: 'About KrishiSahayak',
       subtitle: 'App version and information',
       icon: 'information-circle-outline',
       color: 'bg-gray-500',
-      onPress: () => Alert.alert('About Farmula', 'Farmula v1.0.0\nAI-powered farming assistant')
+      onPress: () => Alert.alert('About KrishiSahayak', 'KrishiSahayak v1.0.0\nAI-powered farming assistant')
     }
   ];
 

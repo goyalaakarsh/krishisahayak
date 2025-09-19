@@ -4,21 +4,22 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Clipboard,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    Vibration,
-    View
+  Alert,
+  Animated,
+  Clipboard,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Vibration,
+  View
 } from 'react-native';
+import Text from '../components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { chatApiService } from '../utils/chatApiService';
 import { permissionManager } from '../utils/permissions';
 
 interface Message {
@@ -49,6 +50,7 @@ export default function ChatInterface() {
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [apiError, setApiError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -94,12 +96,24 @@ export default function ChatInterface() {
 
       setMessages(prev => [...prev, imageMessage, analyzeMessage]);
       
-      // Auto-send analysis request
-      setTimeout(() => {
-        handleImageAnalysis(params.imageUri as string);
-      }, 1000);
+      // If we have a pre-analyzed result, show it immediately
+      if (params.analysisResult) {
+        const analysisResponse: Message = {
+          id: (Date.now() + 2).toString(),
+          text: params.analysisResult as string,
+          isUser: false,
+          timestamp: new Date(),
+          type: 'text'
+        };
+        setMessages(prev => [...prev, analysisResponse]);
+      } else {
+        // Auto-send analysis request if no pre-analyzed result
+        setTimeout(() => {
+          handleImageAnalysis(params.imageUri as string);
+        }, 1000);
+      }
     }
-  }, [params.imageUri, params.analyzeMessage]);
+  }, [params.imageUri, params.analyzeMessage, params.analysisResult]);
 
   // Recording animation effects
   useEffect(() => {
@@ -178,7 +192,7 @@ export default function ChatInterface() {
     }
   ], []);
 
-  const handleSendMessage = useCallback(() => {
+  const handleSendMessage = useCallback(async () => {
     if (inputText.trim() === '') return;
 
     const userMessage: Message = {
@@ -190,22 +204,52 @@ export default function ChatInterface() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputText;
     setInputText('');
     setIsTyping(true);
+    setApiError(null);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      console.log('Sending message to chat API...');
+      
+      // Convert current messages to API format
+      const conversationHistory = chatApiService.convertMessagesToApiFormat(messages);
+      
+      // Call the real API
+      const apiResponse = await chatApiService.sendMessage(currentInput, conversationHistory);
+      
+      console.log('Received API response:', apiResponse);
+
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: generateAIResponse(inputText),
+        text: apiResponse.response,
         isUser: false,
         timestamp: new Date(),
         type: 'text'
       };
+      
       setMessages(prev => [...prev, aiResponse]);
+      
+    } catch (error) {
+      console.error('Error sending message to API:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get response';
+      setApiError(errorMessage);
+      
+      // Show error to user
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        text: `Sorry, I'm having trouble connecting to the server. Error: ${errorMessage}. Please try again later.`,
+        isUser: false,
+        timestamp: new Date(),
+        type: 'text'
+      };
+      
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
-  }, [inputText]);
+    }
+  }, [inputText, messages]);
 
   const startRecording = async () => {
     try {
@@ -316,74 +360,53 @@ export default function ChatInterface() {
     }
   };
 
-  const handleImageAnalysis = (imageUri: string) => {
+  const handleImageAnalysis = async (imageUri: string) => {
     setIsTyping(true);
+    setApiError(null);
     
-    // Simulate AI image analysis
-    setTimeout(() => {
+    try {
+      console.log('Sending image for analysis to chat API...');
+      
+      const analysisMessage = 'Analyze this plant image for diseases, pests, and provide recommendations';
+      const apiResponse = await chatApiService.sendImageAnalysis(imageUri, analysisMessage);
+      
+      console.log('Received image analysis response:', apiResponse);
+
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: generateImageAnalysisResponse(),
+        text: apiResponse.response,
         isUser: false,
         timestamp: new Date(),
         type: 'text'
       };
+      
       setMessages(prev => [...prev, aiResponse]);
+      
+    } catch (error) {
+      console.error('Error analyzing image:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Failed to analyze image';
+      setApiError(errorMessage);
+      
+      // Show error to user
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        text: `Sorry, I'm having trouble analyzing the image. Error: ${errorMessage}. Please try again later.`,
+        isUser: false,
+        timestamp: new Date(),
+        type: 'text'
+      };
+      
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
       setIsTyping(false);
-    }, 3000);
-  };
-
-  const generateImageAnalysisResponse = (): string => {
-    return `🔍 **Image Analysis Complete**
-
-I've analyzed your plant image and here's what I found:
-
-**🌿 Plant Health Assessment:**
-• Overall condition: Good with minor concerns
-• Leaf color: Healthy green with some yellowing
-• Growth pattern: Normal development
-
-**⚠️ Potential Issues Detected:**
-• **Leaf Spot Disease** (Confidence: 85%)
-• **Nutrient Deficiency** (Confidence: 70%)
-• **Minor Pest Activity** (Confidence: 60%)
-
-**💡 Recommended Actions:**
-1. Apply fungicide for leaf spot treatment
-2. Check soil pH and add appropriate nutrients
-3. Monitor for pest activity and treat if needed
-4. Ensure proper watering schedule
-
-**📋 Prevention Tips:**
-• Maintain good air circulation
-• Avoid overhead watering
-• Regular soil testing
-• Proper spacing between plants
-
-Would you like more specific treatment recommendations or have questions about any of these findings?`;
-  };
-
-  const generateAIResponse = (userInput: string): string => {
-    const input = userInput.toLowerCase();
-    
-    if (input.includes('crop') && input.includes('plant')) {
-      return 'Based on your location and current season, I recommend rice, wheat, or sugarcane. Consider your soil type and water availability. Would you like specific variety recommendations?';
-    } else if (input.includes('disease') || input.includes('pest')) {
-      return 'I can help you identify crop diseases and pests. Please describe the symptoms or upload a photo for better diagnosis. Common issues include leaf blight, powdery mildew, and aphid infestations.';
-    } else if (input.includes('weather')) {
-      return 'The weather forecast shows partly cloudy conditions with 20% chance of rain. Temperature will range from 18°C to 28°C. This is good for most farming activities. Avoid spraying pesticides if rain is expected.';
-    } else if (input.includes('harvest')) {
-      return 'For rice harvesting, the best time is when 80-85% of the grains are mature. Check for golden color and firm texture. Harvest in the morning when moisture content is optimal.';
-    } else if (input.includes('soil')) {
-      return 'I recommend testing your soil for pH, nutrients, and organic matter. Ideal pH for most crops is 6.0-7.5. You can get soil testing done at your nearest agricultural extension office.';
-    } else {
-      return 'I understand your question about farming. Could you provide more specific details so I can give you the most accurate advice? I can help with crop planning, disease diagnosis, weather information, and market insights.';
     }
   };
 
-  const handleQuickQuestion = useCallback((question: string) => {
+
+  const handleQuickQuestion = useCallback(async (question: string) => {
     setInputText(question);
-    handleSendMessage();
+    await handleSendMessage();
   }, [handleSendMessage]);
 
   const handleSuggestion = useCallback((action: string) => {
@@ -525,6 +548,25 @@ Would you like more specific treatment recommendations or have questions about a
         >
           {messages.map((message) => renderMessage(message))}
 
+          {/* API Error Display */}
+          {apiError && (
+            <View className="mb-4 items-center">
+              <View className="bg-red-50 border border-red-200 rounded-xl p-4 max-w-[80%]">
+                <View className="flex-row items-center mb-2">
+                  <Ionicons name="warning" size={20} color="#dc2626" />
+                  <Text className="text-red-800 font-semibold ml-2">Connection Error</Text>
+                </View>
+                <Text className="text-red-700 text-sm">{apiError}</Text>
+                <TouchableOpacity 
+                  onPress={() => setApiError(null)}
+                  className="mt-2 self-end"
+                >
+                  <Text className="text-red-600 text-xs">Dismiss</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           {isTyping && (
             <View className="mb-4 items-start">
               <View className="bg-white rounded-2xl rounded-bl-md shadow-sm p-4">
@@ -603,7 +645,7 @@ Would you like more specific treatment recommendations or have questions about a
         <View className="px-6 py-4 bg-white border-t border-gray-100">
           <View className="flex-row items-end space-x-3">
             <TouchableOpacity
-              onPress={() => router.push('/(tabs)/crop-scanner')}
+              onPress={() => router.push('/crop-scanner')}
               className="w-12 h-12 rounded-full items-center justify-center shadow-sm bg-blue-100 border border-blue-200"
               accessibilityLabel="Open camera"
               accessibilityHint="Tap to open camera for plant scanning"

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, RefreshControl, ScrollView, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Text from './components/Text';
 import { llmService, WeatherInsights } from './utils/llmService';
 import { permissionManager } from './utils/permissions';
 import { ProcessedWeatherData, weatherService } from './utils/weatherService';
@@ -187,7 +188,7 @@ export default function WeatherForecast() {
             Location Permission Required
           </Text>
           <Text className="text-lg text-gray-600 text-center mb-8 leading-6">
-            Farmula needs location access to provide accurate weather forecasts and location-specific farming advice.
+            KrishiSahayak needs location access to provide accurate weather forecasts and location-specific farming advice.
           </Text>
           <TouchableOpacity 
             className="bg-green-600 py-4 px-8 rounded-2xl mb-4"

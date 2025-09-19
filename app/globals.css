@@ -2,10 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom global styles for Farmula app */
-* {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-}
+/* Custom global styles for KrishiSahayak app */
+/* Note: React Native doesn't support global font inheritance like CSS */
+/* All text must be wrapped in <Text> components with explicit fontFamily */
 
 /* Custom component styles */
 .btn-primary {
@@ -39,4 +38,17 @@
 
 .gradient-purple {
   background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+/* Font utilities for DM Sans - these work with NativeWind */
+.font-regular {
+  font-family: 'DM-Regular';
+}
+
+.font-medium {
+  font-family: 'DM-Medium';
+}
+
+.font-bold {
+  font-family: 'DM-Bold';
 }

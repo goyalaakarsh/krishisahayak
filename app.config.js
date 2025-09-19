@@ -1,6 +1,6 @@
 export default {
   expo: {
-    name: "Farmula",
+    name: "KrishiSahayak",
     slug: "farmula",
     version: "1.0.0",
     orientation: "portrait",
@@ -29,13 +29,15 @@ export default {
       favicon: "./assets/images/favicon.png"
     },
     plugins: [
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ],
     experiments: {
       typedRoutes: true
     },
     extra: {
-      geminiApiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY || "AIzaSyBrEHwOV0v6KMM7oqqOkhLYmugVSKhk9E4"
+      geminiApiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY || "AIzaSyBrEHwOV0v6KMM7oqqOkhLYmugVSKhk9E4",
+      fastapiApiUrl: process.env.EXPO_PUBLIC_FASTAPI_API_URL || "http://localhost:8000/api"
     }
   }
 };

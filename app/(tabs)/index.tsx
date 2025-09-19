@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Dimensions, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Dimensions, RefreshControl, ScrollView, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Text from '../components/Text';
 import { permissionManager } from '../utils/permissions';
 import { CurrentWeatherData, weatherService } from '../utils/weatherService';
 
@@ -145,17 +146,17 @@ export default function Dashboard() {
       <SafeAreaView className="flex-1 bg-gray-50">
         <View className="flex-1 items-center justify-center px-8">
           <Ionicons name="location-outline" size={80} color="#6b7280" />
-          <Text className="text-2xl font-bold text-gray-900 text-center mb-4 mt-6">
+          <Text variant="bold" className="text-2xl text-gray-900 text-center mb-4 mt-6">
             Location Permission Required
           </Text>
-          <Text className="text-lg text-gray-600 text-center mb-8 leading-6">
-            Farmula needs location access to provide accurate weather forecasts and location-specific farming advice.
+          <Text variant="regular" className="text-lg text-gray-600 text-center mb-8 leading-6">
+            KrishiSahayak needs location access to provide accurate weather forecasts and location-specific farming advice.
           </Text>
           <TouchableOpacity 
             className="bg-green-600 py-4 px-8 rounded-2xl mb-4"
             onPress={checkLocationPermission}
           >
-            <Text className="text-white text-lg font-semibold text-center">
+            <Text variant="medium" className="text-white text-lg text-center">
               Grant Permission
             </Text>
           </TouchableOpacity>
@@ -169,10 +170,10 @@ export default function Dashboard() {
       <SafeAreaView className="flex-1 bg-gray-50">
         <View className="flex-1 items-center justify-center px-8">
           <Ionicons name="cloud-outline" size={80} color="#6b7280" />
-          <Text className="text-2xl font-bold text-gray-900 text-center mb-4 mt-6">
+          <Text variant="bold" className="text-2xl text-gray-900 text-center mb-4 mt-6">
             Loading Weather Data
           </Text>
-          <Text className="text-lg text-gray-600 text-center mb-8 leading-6">
+          <Text variant="regular" className="text-lg text-gray-600 text-center mb-8 leading-6">
             Fetching real-time weather information for your location...
           </Text>
         </View>
@@ -189,28 +190,13 @@ export default function Dashboard() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Header */}
-        {/* <View className="px-6 pt-4 pb-4">
-          <View className="flex-row items-center justify-between mb-2">
-            <View>
-              <Text className="text-2xl font-bold text-gray-900">Good Morning!</Text>
-              <Text className="text-gray-600">Welcome back to Farmula</Text>
-            </View>
-            <Link href="/(tabs)/profile" asChild>
-              <TouchableOpacity className="w-10 h-10 bg-green-100 rounded-full items-center justify-center">
-                <Ionicons name="person-outline" size={20} color="#059669" />
-              </TouchableOpacity>
-            </Link>
-          </View>
-        </View> */}
-
         {/* Weather Card */}
         <View className="px-6 py-6">
           <View className={`${getWeatherColor(weatherData?.condition || 'Partly Cloudy')} rounded-2xl p-6`}>
             <View className="flex-row items-center justify-between mb-4">
               <View>
-                <Text className="text-white text-lg font-semibold">Today's Weather</Text>
-                <Text className="text-white/80">{getLocationName()}</Text>
+                <Text variant="medium" className="text-white text-lg">Today's Weather</Text>
+                <Text variant="regular" className="text-white/80">{getLocationName()}</Text>
               </View>
               <Ionicons 
                 name={getWeatherIcon(weatherData?.icon || 'partly-sunny') as any} 
@@ -220,35 +206,34 @@ export default function Dashboard() {
             </View>
             <View className="flex-row items-center justify-between">
               <View>
-                <Text className="text-white text-3xl font-bold">
+                <Text variant="bold" className="text-white text-3xl">
                   {weatherData?.temp || 28}°C
                 </Text>
-                <Text className="text-white/80 text-lg">
+                <Text variant="regular" className="text-white/80 text-lg">
                   {weatherData?.condition || 'Partly Cloudy'}
                 </Text>
-                <Text className="text-white/70 text-sm">
+                <Text variant="regular" className="text-white/70 text-sm">
                   Feels like {weatherData?.feelsLike || 30}°C
                 </Text>
               </View>
               <View className="items-end">
-                <Text className="text-white text-sm">
+                <Text variant="regular" className="text-white text-sm">
                   Humidity: {weatherData?.humidity || 65}%
                 </Text>
-                <Text className="text-white text-sm">
+                <Text variant="regular" className="text-white text-sm">
                   Wind: {weatherData?.wind || 12} km/h
                 </Text>
-                <Text className="text-white text-sm">
+                <Text variant="regular" className="text-white text-sm">
                   Rain: {weatherData?.rain || 0}mm
                 </Text>
               </View>
             </View>
-            <Text className="text-white/90 text-sm mt-3">
+            <Text variant="regular" className="text-white/90 text-sm mt-3">
               {weatherData?.description || 'Good conditions for farming'}
             </Text>
           </View>
         </View>
 
-        
         {/* AI Assistant Card */}
         <View className="px-6 mb-6">
           <Link href="/chat-interface" asChild>
@@ -258,8 +243,8 @@ export default function Dashboard() {
                   <Ionicons name="chatbubble-outline" size={24} color="white" />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-white text-lg font-semibold mb-1">AI Assistant</Text>
-                  <Text className="text-green-100 text-sm">Get instant farming advice</Text>
+                  <Text variant="medium" className="text-white text-lg mb-1">AI Assistant</Text>
+                  <Text variant="regular" className="text-green-100 text-sm">Get instant farming advice</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="white" />
               </View>
@@ -267,11 +252,9 @@ export default function Dashboard() {
           </Link>
         </View>
 
-
-
         {/* Quick Actions */}
         <View className="px-6 mb-6">
-          <Text className="text-xl font-bold text-gray-900 mb-4">Quick Actions</Text>
+          <Text variant="bold" className="text-xl text-gray-900 mb-4">Quick Actions</Text>
           <View className="flex-row flex-wrap justify-between">
             {quickActions.map((action, index) => (
               <Link key={index} href={action.href as any} asChild>
@@ -279,71 +262,36 @@ export default function Dashboard() {
                   <View className={`w-12 h-12 ${action.color} rounded-xl items-center justify-center mb-3`}>
                     <Ionicons name={action.icon as any} size={24} color="white" />
                   </View>
-                  <Text className="font-semibold text-gray-900 text-center mb-1">{action.title}</Text>
-                  <Text className="text-gray-600 text-xs text-center">{action.subtitle}</Text>
+                  <Text variant="medium" className="text-gray-900 text-center mb-1">{action.title}</Text>
+                  <Text variant="regular" className="text-gray-600 text-xs text-center">{action.subtitle}</Text>
                 </TouchableOpacity>
               </Link>
             ))}
           </View>
         </View>
 
-
-                {/* Soil Stats */}
-                <View className="px-6 mb-6">
-          <Text className="text-xl font-bold text-gray-900 mb-4">Soil Conditions</Text>
+        {/* Soil Stats */}
+        <View className="px-6 mb-6">
+          <Text variant="bold" className="text-xl text-gray-900 mb-4">Soil Conditions</Text>
           <View className="flex-row flex-wrap justify-between">
             {stats.map((stat, index) => (
               <View key={index} className="card w-[48%] mb-3">
-                <Text className="text-gray-600 text-sm mb-1">{stat.label}</Text>
+                <Text variant="regular" className="text-gray-600 text-sm mb-1">{stat.label}</Text>
                 <View className="flex-row items-baseline">
-                  <Text className="text-2xl font-bold text-gray-900">{stat.value}</Text>
-                  <Text className="text-gray-500 ml-1">{stat.unit}</Text>
+                  <Text variant="bold" className="text-2xl text-gray-900">{stat.value}</Text>
+                  <Text variant="regular" className="text-gray-500 ml-1">{stat.unit}</Text>
                 </View>
                 <View className="flex-row items-center mt-2">
                   <View className={`w-2 h-2 rounded-full mr-2 ${
                     stat.status === 'good' ? 'bg-green-500' :
                     stat.status === 'optimal' ? 'bg-blue-500' : 'bg-yellow-500'
                   }`} />
-                  <Text className="text-xs text-gray-600 capitalize">{stat.status}</Text>
+                  <Text variant="regular" className="text-xs text-gray-600 capitalize">{stat.status}</Text>
                 </View>
               </View>
             ))}
           </View>
         </View>
-
-        {/* Recent Activity */}
-        {/* <View className="px-6 mb-6">
-          <Text className="text-xl font-bold text-gray-900 mb-4">Recent Activity</Text>
-          <View className="space-y-3">
-            <View className="card flex-row items-center">
-              <View className="w-10 h-10 bg-green-100 rounded-full items-center justify-center mr-3">
-                <Ionicons name="checkmark-circle" size={20} color="#059669" />
-              </View>
-              <View className="flex-1">
-                <Text className="font-semibold text-gray-900">Soil test completed</Text>
-                <Text className="text-gray-600 text-sm">2 hours ago</Text>
-              </View>
-            </View>
-            <View className="card flex-row items-center">
-              <View className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center mr-3">
-                <Ionicons name="leaf" size={20} color="#3b82f6" />
-              </View>
-              <View className="flex-1">
-                <Text className="font-semibold text-gray-900">Crop recommendation updated</Text>
-                <Text className="text-gray-600 text-sm">Yesterday</Text>
-              </View>
-            </View>
-            <View className="card flex-row items-center">
-              <View className="w-10 h-10 bg-yellow-100 rounded-full items-center justify-center mr-3">
-                <Ionicons name="warning" size={20} color="#f59e0b" />
-              </View>
-              <View className="flex-1">
-                <Text className="font-semibold text-gray-900">Weather alert: Heavy rain expected</Text>
-                <Text className="text-gray-600 text-sm">3 days ago</Text>
-              </View>
-            </View>
-          </View>
-        </View> */}
       </ScrollView>
     </SafeAreaView>
   );

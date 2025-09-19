@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, RefreshControl, ScrollView, TouchableOpacity, View } from 'react-native';
+import Text from '../components/Text';
 import { MarketInsights, marketService } from '../utils/marketService';
 
 export default function MarketInsightsScreen() {

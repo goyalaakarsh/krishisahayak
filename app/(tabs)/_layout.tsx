@@ -25,6 +25,7 @@ export default function TabLayout() {
           fontSize: 11,
           fontWeight: '600',
           marginTop: 2,
+          fontFamily: 'DM-Medium', // Apply DM Sans to tab labels
         },
         tabBarIconStyle: {
           marginTop: 4,
@@ -40,6 +41,7 @@ export default function TabLayout() {
           fontSize: 18,
           fontWeight: 'bold',
           color: '#111827',
+          fontFamily: 'DM-Bold', // Apply DM Sans Bold to page titles
         },
         headerTintColor: '#059669',
       }}
@@ -55,7 +57,7 @@ export default function TabLayout() {
               color={color} 
             />
           ),
-          headerTitle: 'Farmula',
+          headerTitle: 'KrishiSahayak',
         }}
       />
         <Tabs.Screen

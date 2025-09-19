@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useRef, useState } from 'react';
 import {
   Alert,
@@ -8,11 +9,12 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { llmService, PestDetectionResult } from './utils/llmService';
+import Text from './components/Text';
+import { pestApiService, PestDetectionApiResponse } from './utils/pestApiService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -20,10 +22,12 @@ const { width, height } = Dimensions.get('window');
 
 export default function PestDetection() {
   const [permission, requestPermission] = useCameraPermissions();
+  const [galleryPermission, requestGalleryPermission] = ImagePicker.useMediaLibraryPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detectionResult, setDetectionResult] = useState<PestDetectionResult | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
 
   // Mock pest detection results with pesticide data
@@ -246,34 +250,85 @@ export default function PestDetection() {
   const retakePicture = () => {
     setCapturedImage(null);
     setDetectionResult(null);
+    setApiError(null);
+  };
+
+  const pickImageFromGallery = async () => {
+    try {
+      // Check gallery permissions
+      if (!galleryPermission?.granted) {
+        const permissionResult = await requestGalleryPermission();
+        if (!permissionResult.granted) {
+          Alert.alert('Permission Required', 'Gallery access is needed to select images for pest detection.');
+          return;
+        }
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: false,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setCapturedImage(result.assets[0].uri);
+        setDetectionResult(null);
+        setApiError(null);
+      }
+    } catch (error) {
+      console.error('Error picking image from gallery:', error);
+      Alert.alert('Error', 'Failed to select image from gallery');
+    }
   };
 
   const analyzeImage = async () => {
     if (!capturedImage) return;
 
     setIsAnalyzing(true);
+    setApiError(null);
     
     try {
-      // Simulate image analysis delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('Starting pest detection analysis...');
+      console.log('Image URI:', capturedImage);
       
-      // Get random pest name and base pesticides
-      const randomPest = mockPestData[Math.floor(Math.random() * mockPestData.length)];
-      const basePesticides = randomPest.pesticides.map(p => p.name);
+      // Call the FastAPI backend to detect pest
+      const apiResponse: PestDetectionApiResponse = await pestApiService.detectPest(capturedImage);
       
-      console.log('Generating LLM pest data for:', randomPest.pest);
-      console.log('Base pesticides:', basePesticides);
+      console.log('API Response:', apiResponse);
+      console.log('Pest Name:', apiResponse.pestName);
+      console.log('Pesticides:', apiResponse.pesticides);
       
-      // Generate comprehensive pest data using LLM
-      const pestResult = await llmService.generatePestDetectionResult(randomPest.pest, basePesticides);
+      // Generate comprehensive pest data using LLM service
+      console.log('Generating detailed pest information with LLM...');
+      const pestResult = await llmService.generatePestDetectionResult(
+        apiResponse.pestName, 
+        apiResponse.pesticides
+      );
       
       console.log('LLM generated pest result:', pestResult);
       setDetectionResult(pestResult);
+      
     } catch (error) {
       console.error('Error analyzing pest:', error);
+      
+      // Show error to user
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setApiError(errorMessage);
+      
       // Fallback to mock data
+      console.log('Falling back to mock data due to error');
       const randomPest = mockPestData[Math.floor(Math.random() * mockPestData.length)];
       setDetectionResult(randomPest);
+      
+      // Show alert about fallback
+      Alert.alert(
+        'API Error', 
+        `Could not connect to pest detection API: ${errorMessage}. Showing sample data instead.`,
+        [{ text: 'OK' }]
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -281,6 +336,62 @@ export default function PestDetection() {
 
   const toggleCameraFacing = () => {
     setFacing(current => (current === 'back' ? 'front' : 'back'));
+  };
+
+  const testApiConnection = async () => {
+    try {
+      console.log('Testing API connection...');
+      
+      // Test basic connection first
+      const isConnected = await pestApiService.testConnection();
+      if (!isConnected) {
+        Alert.alert('Error', 'Basic API connection failed. Please check your server.');
+        return;
+      }
+      
+      // Test pest detection endpoint
+      const pestEndpointWorking = await pestApiService.testPestDetectionEndpoint();
+      if (pestEndpointWorking) {
+        Alert.alert('Success', 'API connection and pest detection endpoint are working!');
+      } else {
+        Alert.alert('Warning', 'API is connected but pest detection endpoint has issues. Check the endpoint implementation.');
+      }
+    } catch (error) {
+      console.error('API test error:', error);
+      Alert.alert('Error', `API test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const testWithSampleImage = async () => {
+    try {
+      console.log('Testing with sample image...');
+      setIsAnalyzing(true);
+      setApiError(null);
+      
+      // Create a sample data URI for testing
+      const sampleImageUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+      
+      // Call the API with sample image
+      const apiResponse = await pestApiService.detectPest(sampleImageUri);
+      console.log('Sample API Response:', apiResponse);
+      
+      // Generate LLM data
+      const pestResult = await llmService.generatePestDetectionResult(
+        apiResponse.pestName, 
+        apiResponse.pesticides
+      );
+      
+      setDetectionResult(pestResult);
+      Alert.alert('Success', 'Sample test completed! Check the results below.');
+      
+    } catch (error) {
+      console.error('Sample test error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setApiError(errorMessage);
+      Alert.alert('Error', `Sample test failed: ${errorMessage}`);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const renderCameraView = () => (
@@ -294,7 +405,16 @@ export default function PestDetection() {
         <View style={styles.cameraOverlay}>
           {/* Camera Controls */}
           <View style={styles.cameraControls}>
-            <TouchableOpacity style={styles.controlButton} onPress={toggleCameraFacing}>
+            <TouchableOpacity style={styles.controlButton} onPress={testApiConnection}>
+              <Ionicons name="wifi" size={24} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.controlButton, { marginTop: 12 }]} onPress={testWithSampleImage}>
+              <Ionicons name="flask" size={24} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.controlButton, { marginTop: 12 }]} onPress={pickImageFromGallery}>
+              <Ionicons name="images" size={24} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.controlButton, { marginTop: 12 }]} onPress={toggleCameraFacing}>
               <Ionicons name="camera-reverse" size={24} color="white" />
             </TouchableOpacity>
           </View>
@@ -309,9 +429,9 @@ export default function PestDetection() {
 
           {/* Instructions */}
           <View style={styles.instructionsContainer}>
-            <Text style={styles.instructionsTitle}>Position the pest in the square</Text>
+            <Text style={styles.instructionsTitle}>Detect Pests</Text>
             <Text style={styles.instructionsText}>
-              Make sure the pest is clearly visible within the frame
+              Take a photo or select from gallery
             </Text>
           </View>
 
@@ -320,6 +440,7 @@ export default function PestDetection() {
             <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
               <View style={styles.captureButtonInner} />
             </TouchableOpacity>
+            <Text style={styles.captureHint}>Tap to capture • Gallery button above</Text>
           </View>
         </View>
       </CameraView>
@@ -331,10 +452,16 @@ export default function PestDetection() {
       <Image source={{ uri: capturedImage! }} style={styles.previewImage} />
       <View style={styles.previewControls}>
         <TouchableOpacity style={styles.retakeButton} onPress={retakePicture}>
-          <Text style={styles.retakeButtonText}>Retake</Text>
+          <Ionicons name="camera" size={16} color="#374151" />
+          <Text style={styles.retakeButtonText}>Camera</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.galleryButton} onPress={pickImageFromGallery}>
+          <Ionicons name="images" size={16} color="#374151" />
+          <Text style={styles.galleryButtonText}>Gallery</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.analyzeButton} onPress={analyzeImage}>
-          <Text style={styles.analyzeButtonText}>Analyze Pest</Text>
+          <Ionicons name="search" size={16} color="white" />
+          <Text style={styles.analyzeButtonText}>Analyze</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -357,6 +484,23 @@ export default function PestDetection() {
       </View>
     </View>
   );
+
+  const renderApiError = () => {
+    if (!apiError) return null;
+
+    return (
+      <View style={styles.errorCard}>
+        <View style={styles.errorContent}>
+          <Ionicons name="warning" size={32} color="#ef4444" />
+          <Text style={styles.errorTitle}>API Connection Error</Text>
+          <Text style={styles.errorMessage}>{apiError}</Text>
+          <Text style={styles.errorSubtext}>
+            Showing sample data for demonstration purposes.
+          </Text>
+        </View>
+      </View>
+    );
+  };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -490,7 +634,12 @@ export default function PestDetection() {
       {!capturedImage && !isAnalyzing && !detectionResult && renderCameraView()}
       {capturedImage && !isAnalyzing && !detectionResult && renderImagePreview()}
       {isAnalyzing && renderAnalysisProgress()}
-      {detectionResult && renderDetectionResult()}
+      {detectionResult && (
+        <>
+          {renderApiError()}
+          {renderDetectionResult()}
+        </>
+      )}
     </View>
   );
 }
@@ -642,6 +791,13 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     backgroundColor: 'white',
   },
+  captureHint: {
+    color: 'white',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 12,
+    opacity: 0.8,
+  },
   previewContainer: {
     flex: 1,
     margin: 20,
@@ -655,7 +811,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 28,
-    gap: 20,
+    gap: 12,
   },
   retakeButton: {
     flex: 1,
@@ -665,11 +821,31 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   retakeButtonText: {
     color: '#374151',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
+    marginLeft: 6,
+  },
+  galleryButton: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  galleryButtonText: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
   },
   analyzeButton: {
     flex: 1,
@@ -677,11 +853,14 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   analyzeButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
+    marginLeft: 6,
   },
   analysisCard: {
     marginHorizontal: 20,
@@ -964,5 +1143,38 @@ const styles = StyleSheet.create({
     color: '#059669',
     fontSize: 16,
     fontWeight: '600',
+  },
+  errorCard: {
+    marginHorizontal: 20,
+    marginVertical: 12,
+    backgroundColor: '#fef2f2',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  errorContent: {
+    alignItems: 'center',
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#dc2626',
+    marginTop: 12,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#7f1d1d',
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  errorSubtext: {
+    fontSize: 12,
+    color: '#991b1b',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

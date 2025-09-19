@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import { geocodingService, LocationData } from '../utils/geocodingService';
+import Text from '../components/Text';
 import { getLanguageTexts } from '../utils/languages';
 import { CropRecommendation, CropRecommendationRequest, llmService } from '../utils/llmService';
 import { permissionManager } from '../utils/permissions';

@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Animated,
   Dimensions,
-  Text,
-  View,
-  StyleSheet
+  StyleSheet,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Text from './components/Text';
 
 const { width, height } = Dimensions.get('window');
 
@@ -119,7 +119,7 @@ export default function SplashScreen() {
             style={[styles.textContainer, { transform: [{ translateY: textTranslateAnim }] }]}
           >
             <Text style={styles.appName}>
-              Farmula
+              KrishiSahayak
             </Text>
             <View style={styles.appNameUnderline} />
             <Text style={styles.appTagline}>

@@ -4,7 +4,15 @@ module.exports = {
   content: ["./app/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        'dm-regular': ['DM-Regular'],
+        'dm-medium': ['DM-Medium'],
+        'dm-bold': ['DM-Bold'],
+        // Set DM Regular as default
+        'sans': ['DM-Regular'],
+      },
+    },
   },
   plugins: [],
 }

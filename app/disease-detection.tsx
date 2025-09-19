@@ -7,12 +7,12 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    Text,
     TextInput,
     TouchableOpacity,
     Vibration,
     View
 } from 'react-native';
+import Text from './components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DiseaseData, diseaseService } from './utils/diseaseService';
 

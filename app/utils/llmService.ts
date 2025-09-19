@@ -353,7 +353,7 @@ Focus on practical, actionable market intelligence for farmers. Consider price t
         summary: `Price trends analyzed for ${marketData.length} commodities in ${location.locality}`,
         impact: 'Positive',
         time: 'Just now',
-        source: 'Farmula AI'
+        source: 'KrishiSahayak AI'
       }
     ];
 
