@@ -375,12 +375,6 @@ export default function DiseaseDetection() {
         className="flex-1" 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Header */}
-        <View className="px-6 py-4 bg-white border-b border-gray-100">
-          <Text className="text-2xl font-bold text-gray-900">Disease Detection</Text>
-          <Text className="text-gray-600 text-sm mt-1">Enter crop name to identify diseases and get solutions</Text>
-        </View>
-
         {/* Main Content */}
         <ScrollView className="flex-1 px-6 py-4">
           {/* Input Section */}

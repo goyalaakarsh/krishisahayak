@@ -1,22 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Clipboard,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Vibration,
-  View
+    Alert,
+    Animated,
+    Clipboard,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    Vibration,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { permissionManager } from './utils/permissions';
@@ -34,6 +34,7 @@ interface Message {
 
 export default function ChatInterface() {
   const params = useLocalSearchParams();
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -164,10 +165,10 @@ export default function ChatInterface() {
       action: 'disease_diagnosis'
     },
     {
-      title: 'Weather Alert',
-      description: 'Check weather conditions',
-      icon: 'partly-sunny-outline',
-      action: 'weather_check'
+      title: 'Pest Detection',
+      description: 'Identify pests and get pesticide recommendations',
+      icon: 'bug-outline',
+      action: 'pest_detection'
     },
     {
       title: 'Market Prices',
@@ -386,16 +387,22 @@ Would you like more specific treatment recommendations or have questions about a
   }, [handleSendMessage]);
 
   const handleSuggestion = useCallback((action: string) => {
+    if (action === 'disease_diagnosis') {
+      // Navigate to disease detection page
+      router.push('/disease-detection');
+      return;
+    }
+
+    if (action === 'pest_detection') {
+      // Navigate to pest detection page
+      router.push('/pest-detection');
+      return;
+    }
+
     let response = '';
     switch (action) {
       case 'crop_planning':
         response = 'I\'ll help you with crop planning. Please tell me about your farm size, soil type, and preferred growing season.';
-        break;
-      case 'disease_diagnosis':
-        response = 'For disease diagnosis, please describe the symptoms you\'re seeing or upload a clear photo of the affected plant.';
-        break;
-      case 'weather_check':
-        response = 'Current weather: 28°C, partly cloudy, 65% humidity. 7-day forecast shows good conditions for farming with light rain expected on Wednesday.';
         break;
       case 'market_prices':
         response = 'Current market prices: Rice ₹2,850/quintal, Wheat ₹2,150/quintal, Sugarcane ₹3,200/quintal. Prices are trending upward for rice and sugarcane.';
@@ -411,7 +418,7 @@ Would you like more specific treatment recommendations or have questions about a
     };
 
     setMessages(prev => [...prev, suggestionMessage]);
-  }, []);
+  }, [router]);
 
   const formatTime = useCallback((date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -595,6 +602,19 @@ Would you like more specific treatment recommendations or have questions about a
         {/* Input Area */}
         <View className="px-6 py-4 bg-white border-t border-gray-100">
           <View className="flex-row items-end space-x-3">
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/crop-scanner')}
+              className="w-12 h-12 rounded-full items-center justify-center shadow-sm bg-blue-100 border border-blue-200"
+              accessibilityLabel="Open camera"
+              accessibilityHint="Tap to open camera for plant scanning"
+              accessibilityRole="button"
+            >
+              <Ionicons 
+                name="camera" 
+                size={20} 
+                color="#3b82f6" 
+              />
+            </TouchableOpacity>
             <View className="flex-1 bg-gray-50 rounded-2xl px-4 py-3 border border-gray-200">
               <TextInput
                 value={inputText}

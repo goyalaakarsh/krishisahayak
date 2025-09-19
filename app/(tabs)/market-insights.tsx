@@ -4,8 +4,9 @@ import { Alert, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, Vi
 import { MarketInsights, marketService } from '../utils/marketService';
 
 export default function MarketInsightsScreen() {
-  const [selectedCrop, setSelectedCrop] = useState('rice');
+  const [selectedCrop, setSelectedCrop] = useState<string | null>(null);
   const [marketInsights, setMarketInsights] = useState<MarketInsights | null>(null);
+  const [filteredCommodities, setFilteredCommodities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [insightsLoading, setInsightsLoading] = useState(false);
@@ -23,11 +24,27 @@ export default function MarketInsightsScreen() {
       console.log('Market insights received:', insights);
       
       setMarketInsights(insights);
+      setFilteredCommodities(insights.commodities);
     } catch (error) {
       console.error('Error fetching market data:', error);
       Alert.alert('Error', 'Failed to fetch market data. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCropSelection = (cropName: string) => {
+    if (selectedCrop === cropName) {
+      // If same crop is selected, show all commodities
+      setSelectedCrop(null);
+      setFilteredCommodities(marketInsights?.commodities || []);
+    } else {
+      // Filter commodities by selected crop
+      setSelectedCrop(cropName);
+      const filtered = marketInsights?.commodities.filter(commodity => 
+        commodity.commodity.toLowerCase().includes(cropName.toLowerCase())
+      ) || [];
+      setFilteredCommodities(filtered);
     }
   };
 
@@ -38,12 +55,15 @@ export default function MarketInsightsScreen() {
   }, []);
 
   const crops = [
+    { id: 'all', name: 'All Crops', icon: '🌾' },
     { id: 'rice', name: 'Rice', icon: '🌾' },
     { id: 'wheat', name: 'Wheat', icon: '🌾' },
     { id: 'sugarcane', name: 'Sugarcane', icon: '🌾' },
     { id: 'cotton', name: 'Cotton', icon: '🌾' },
     { id: 'tomato', name: 'Tomato', icon: '🍅' },
-    { id: 'potato', name: 'Potato', icon: '🥔' }
+    { id: 'potato', name: 'Potato', icon: '🥔' },
+    { id: 'maize', name: 'Maize', icon: '🌽' },
+    { id: 'onion', name: 'Onion', icon: '🧅' }
   ];
 
   const getTrendIcon = (trend: string) => {
@@ -86,6 +106,20 @@ export default function MarketInsightsScreen() {
     }
   };
 
+  const getCommodityIcon = (commodity: string) => {
+    switch (commodity.toLowerCase()) {
+      case 'rice': return '🌾';
+      case 'wheat': return '🌾';
+      case 'sugarcane': return '🌾';
+      case 'cotton': return '🌾';
+      case 'tomato': return '🍅';
+      case 'potato': return '🥔';
+      case 'maize': return '🌽';
+      case 'onion': return '🧅';
+      default: return '🌾';
+    }
+  };
+
   if (loading) {
     return (
       <View className="flex-1 bg-gray-50 items-center justify-center">
@@ -106,28 +140,37 @@ export default function MarketInsightsScreen() {
       >
         {/* Header */}
         <View className="px-6 py-6">
-          <View className="gradient-purple rounded-2xl p-6 mb-6">
-            <View className="flex-row items-center mb-4">
-              <View className="w-12 h-12 bg-white/20 rounded-xl items-center justify-center mr-4">
-                <Ionicons name="trending-up" size={24} color="white" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-white text-lg font-semibold">Market Intelligence</Text>
-                <Text className="text-purple-100 text-sm">
-                  {marketInsights?.location.displayName || 'Loading location...'}
-                </Text>
+
+          {/* Header */}
+          <View className="mb-6">
+            <View className="gradient-purple rounded-2xl p-6 mb-6">
+              <View className="flex-row items-center mb-4">
+                <View className="w-12 h-12 bg-white/20 rounded-xl items-center justify-center mr-4">
+                  <Ionicons name="trending-up" size={24} color="white" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-white text-lg font-semibold">Market Intelligence</Text>
+                  <Text className="text-purple-100 text-sm">
+                    {marketInsights?.location.displayName || 'Loading location...'}
+                  </Text>
+                  {marketInsights?.dataSource && (
+                    <Text className="text-purple-200 text-xs mt-1">
+                      {marketInsights.dataSource}
+                    </Text>
+                  )}
+                </View>
               </View>
             </View>
           </View>
 
           {/* Crop Selection */}
           <View className="mb-6">
-            <Text className="text-lg font-semibold text-gray-900 mb-3">Select Crop</Text>
+            <Text className="text-lg font-semibold text-gray-900 mb-3">Filter by Crop</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
               {crops.map((crop) => (
                 <TouchableOpacity
                   key={crop.id}
-                  onPress={() => setSelectedCrop(crop.id)}
+                  onPress={() => handleCropSelection(crop.id)}
                   className={`mr-3 px-4 py-3 rounded-xl border ${
                     selectedCrop === crop.id
                       ? 'bg-purple-600 border-purple-600'
@@ -143,17 +186,24 @@ export default function MarketInsightsScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+            {selectedCrop && selectedCrop !== 'all' && (
+              <View className="mt-3">
+                <Text className="text-sm text-gray-600">
+                  Showing {filteredCommodities.length} {selectedCrop} commodity(ies)
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Market Overview */}
           <View className="mb-6">
             <Text className="text-xl font-bold text-gray-900 mb-4">Market Overview</Text>
-            {marketInsights?.commodities && marketInsights.commodities.length > 0 ? (
-              marketInsights.commodities.map((data, index) => (
+            {filteredCommodities && filteredCommodities.length > 0 ? (
+              filteredCommodities.map((data, index) => (
                 <View key={index} className="card mb-4">
                   <View className="flex-row items-center justify-between mb-3">
                     <View className="flex-row items-center">
-                      <Text className="text-2xl mr-3">🌾</Text>
+                      <Text className="text-2xl mr-3">{getCommodityIcon(data.commodity)}</Text>
                       <View>
                         <Text className="text-lg font-bold text-gray-900">{data.commodity}</Text>
                         <Text className="text-gray-600 text-sm">{data.variety} - {data.grade}</Text>
@@ -161,6 +211,7 @@ export default function MarketInsightsScreen() {
                     </View>
                     <View className="items-end">
                       <Text className="text-2xl font-bold text-gray-900">₹{data.currentPrice}</Text>
+                      <Text className="text-xs text-gray-500">per quintal</Text>
                       <View className={`flex-row items-center ${
                         data.trend === 'up' ? 'text-green-600' : data.trend === 'down' ? 'text-red-600' : 'text-gray-600'
                       }`}>
@@ -233,14 +284,14 @@ export default function MarketInsightsScreen() {
           <View className="mb-6">
             <Text className="text-xl font-bold text-gray-900 mb-4">Price Trends (6 Months)</Text>
             <View className="card">
-              {marketInsights?.commodities && marketInsights.commodities.length > 0 ? (
+              {filteredCommodities && filteredCommodities.length > 0 ? (
                 <View className="flex-row justify-between items-end h-32 mb-4">
-                  {marketInsights.commodities[0].priceHistory.map((item, index) => (
+                  {filteredCommodities[0].priceHistory.map((item: any, index: number) => (
                     <View key={index} className="flex-1 items-center">
                       <View 
                         className="bg-purple-500 rounded-t w-6 mb-2"
                         style={{ 
-                          height: Math.max(20, (item.price - Math.min(...marketInsights.commodities[0].priceHistory.map(h => h.price))) / 10)
+                          height: Math.max(20, (item.price - Math.min(...filteredCommodities[0].priceHistory.map((h: any) => h.price))) / 10)
                         }}
                       />
                       <Text className="text-xs text-gray-600">{item.month}</Text>

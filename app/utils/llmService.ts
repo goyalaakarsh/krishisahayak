@@ -28,6 +28,26 @@ export interface MarketInsights {
   generalAdvice: string;
 }
 
+export interface Pesticide {
+  name: string;
+  activeIngredient: string;
+  dosage: string;
+  applicationMethod: string;
+  frequency: string;
+  safetyPrecautions: string[];
+  effectiveness: number;
+  price: string;
+}
+
+export interface PestDetectionResult {
+  pest: string;
+  confidence: number;
+  severity: string;
+  description: string;
+  damage: string[];
+  pesticides: Pesticide[];
+}
+
 class LLMService {
   private static instance: LLMService;
   private readonly EXPO_PUBLIC_GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey || process.env.EXPO_PUBLIC_GEMINI_API_KEY || 'AIzaSyBrEHwOV0v6KMM7oqqOkhLYmugVSKhk9E4';
@@ -364,6 +384,360 @@ Focus on practical, actionable market intelligence for farmers. Consider price t
       marketFactors,
       generalAdvice
     };
+  }
+
+  async generatePestDetectionResult(pestName: string, basePesticides: string[]): Promise<PestDetectionResult> {
+    try {
+      console.log('Generating pest detection result with LLM...');
+      console.log('Pest:', pestName, 'Base pesticides:', basePesticides);
+      
+      // Check if API key is configured
+      if (this.EXPO_PUBLIC_GEMINI_API_KEY === 'your_gemini_api_key_here' || !this.EXPO_PUBLIC_GEMINI_API_KEY) {
+        console.log('Gemini API key not configured, using fallback pest data');
+        return this.getFallbackPestData(pestName, basePesticides);
+      }
+      
+      const prompt = this.createPestDetectionPrompt(pestName, basePesticides);
+      console.log('Pest detection prompt created, calling Gemini API...');
+      const response = await this.callGeminiAPI(prompt);
+      console.log('Gemini API response received for pest detection');
+      
+      return this.parsePestDetectionResponse(response);
+    } catch (error) {
+      console.error('Error generating pest detection result:', error);
+      console.log('Falling back to rule-based pest data');
+      return this.getFallbackPestData(pestName, basePesticides);
+    }
+  }
+
+  private createPestDetectionPrompt(pestName: string, basePesticides: string[]): string {
+    return `You are an expert agricultural pest management specialist. Generate comprehensive pest detection data for "${pestName}" with detailed pesticide recommendations.
+
+PEST NAME: ${pestName}
+BASE PESTICIDES TO INCLUDE: ${basePesticides.join(', ')}
+
+Please provide detailed information including:
+
+1. PEST DESCRIPTION: Scientific and common characteristics
+2. DAMAGE CAUSED: Specific damage symptoms and effects on crops
+3. PESTICIDE RECOMMENDATIONS: Detailed information for each pesticide including:
+   - Active ingredients
+   - Dosage instructions
+   - Application methods
+   - Safety precautions
+   - Effectiveness ratings
+   - Price estimates
+
+Format your response as JSON:
+{
+  "pest": "${pestName}",
+  "confidence": 85-95,
+  "severity": "Low|Medium|High",
+  "description": "Detailed description of the pest, its characteristics, and behavior",
+  "damage": [
+    "Specific damage symptom 1",
+    "Specific damage symptom 2",
+    "Specific damage symptom 3",
+    "Specific damage symptom 4"
+  ],
+  "pesticides": [
+    {
+      "name": "Pesticide Name 1",
+      "activeIngredient": "Chemical compound name",
+      "dosage": "Specific dosage instructions",
+      "applicationMethod": "Detailed application method",
+      "frequency": "Application frequency",
+      "safetyPrecautions": [
+        "Safety precaution 1",
+        "Safety precaution 2",
+        "Safety precaution 3",
+        "Safety precaution 4"
+      ],
+      "effectiveness": 75-95,
+      "price": "₹X-Y per unit"
+    },
+    {
+      "name": "Pesticide Name 2",
+      "activeIngredient": "Chemical compound name",
+      "dosage": "Specific dosage instructions",
+      "applicationMethod": "Detailed application method",
+      "frequency": "Application frequency",
+      "safetyPrecautions": [
+        "Safety precaution 1",
+        "Safety precaution 2",
+        "Safety precaution 3",
+        "Safety precaution 4"
+      ],
+      "effectiveness": 75-95,
+      "price": "₹X-Y per unit"
+    },
+    {
+      "name": "Pesticide Name 3",
+      "activeIngredient": "Chemical compound name",
+      "dosage": "Specific dosage instructions",
+      "applicationMethod": "Detailed application method",
+      "frequency": "Application frequency",
+      "safetyPrecautions": [
+        "Safety precaution 1",
+        "Safety precaution 2",
+        "Safety precaution 3",
+        "Safety precaution 4"
+      ],
+      "effectiveness": 75-95,
+      "price": "₹X-Y per unit"
+    }
+  ]
+}
+
+IMPORTANT GUIDELINES:
+- Include the base pesticides provided in your recommendations
+- Make descriptions practical and farmer-friendly
+- Provide realistic effectiveness ratings (75-95%)
+- Include appropriate safety precautions for each pesticide
+- Use Indian pricing (₹) and units (ml, grams, liters)
+- Focus on commonly available pesticides in India
+- Make damage descriptions specific and recognizable
+- Ensure all data is scientifically accurate and practical for farmers
+
+Focus on providing actionable, safe, and effective pest management solutions.`;
+  }
+
+  private parsePestDetectionResponse(response: string): PestDetectionResult {
+    try {
+      // Extract JSON from the response (in case there's extra text)
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON found in pest detection response');
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      
+      return {
+        pest: parsed.pest || 'Unknown Pest',
+        confidence: parsed.confidence || 85,
+        severity: parsed.severity || 'Medium',
+        description: parsed.description || 'Pest information not available',
+        damage: parsed.damage || ['Damage information not available'],
+        pesticides: parsed.pesticides || []
+      };
+    } catch (error) {
+      console.error('Error parsing pest detection LLM response:', error);
+      throw error;
+    }
+  }
+
+  private getFallbackPestData(pestName: string, basePesticides: string[]): PestDetectionResult {
+    // Generate fallback data based on pest name
+    const pestData: { [key: string]: Partial<PestDetectionResult> } = {
+      'Aphids': {
+        confidence: 92,
+        severity: 'Medium',
+        description: 'Small, soft-bodied insects that feed on plant sap, commonly found on new growth and undersides of leaves.',
+        damage: [
+          'Yellowing and curling of leaves',
+          'Stunted plant growth',
+          'Honeydew secretion leading to sooty mold',
+          'Transmission of plant viruses'
+        ]
+      },
+      'Whiteflies': {
+        confidence: 88,
+        severity: 'High',
+        description: 'Small, white-winged insects that feed on plant sap and can cause significant damage to crops.',
+        damage: [
+          'Yellowing and wilting of leaves',
+          'Reduced plant vigor',
+          'Honeydew production',
+          'Transmission of viral diseases'
+        ]
+      },
+      'Caterpillars': {
+        confidence: 85,
+        severity: 'High',
+        description: 'Larval stage of moths and butterflies that feed on leaves, causing extensive defoliation.',
+        damage: [
+          'Holes in leaves and fruits',
+          'Complete defoliation in severe cases',
+          'Reduced photosynthesis',
+          'Entry points for diseases'
+        ]
+      }
+    };
+
+    const baseData = pestData[pestName] || {
+      confidence: 85,
+      severity: 'Medium',
+      description: `Agricultural pest that can cause damage to crops.`,
+      damage: [
+        'Plant damage and reduced yield',
+        'Potential disease transmission',
+        'Economic losses for farmers'
+      ]
+    };
+
+    // Generate pesticides based on base pesticides provided
+    const pesticides: Pesticide[] = basePesticides.map((pesticide, index) => {
+      const effectiveness = 85 - (index * 5); // Decreasing effectiveness
+      return {
+        name: pesticide,
+        activeIngredient: this.getActiveIngredient(pesticide),
+        dosage: this.getDosage(pesticide),
+        applicationMethod: this.getApplicationMethod(pesticide),
+        frequency: this.getFrequency(pesticide),
+        safetyPrecautions: this.getSafetyPrecautions(pesticide),
+        effectiveness: Math.max(75, effectiveness),
+        price: this.getPrice(pesticide)
+      };
+    });
+
+    return {
+      pest: pestName,
+      confidence: baseData.confidence || 85,
+      severity: baseData.severity || 'Medium',
+      description: baseData.description || 'Pest information not available',
+      damage: baseData.damage || ['Damage information not available'],
+      pesticides
+    };
+  }
+
+  private getActiveIngredient(pesticide: string): string {
+    const ingredients: { [key: string]: string } = {
+      'Neem Oil Spray': 'Azadirachtin',
+      'Pyrethrin Insecticide': 'Pyrethrins',
+      'Insecticidal Soap': 'Potassium salts of fatty acids',
+      'Imidacloprid Systemic': 'Imidacloprid',
+      'Spinosad Organic': 'Spinosad',
+      'Yellow Sticky Traps': 'Adhesive + Pheromone',
+      'Bacillus thuringiensis (Bt)': 'Bacillus thuringiensis',
+      'Chlorantraniliprole': 'Chlorantraniliprole',
+      'Hand Picking + Neem': 'Manual removal + Azadirachtin'
+    };
+    return ingredients[pesticide] || 'Active ingredient not specified';
+  }
+
+  private getDosage(pesticide: string): string {
+    const dosages: { [key: string]: string } = {
+      'Neem Oil Spray': '2-4 ml per liter of water',
+      'Pyrethrin Insecticide': '1-2 ml per liter of water',
+      'Insecticidal Soap': '5-10 ml per liter of water',
+      'Imidacloprid Systemic': '1-2 ml per liter of water',
+      'Spinosad Organic': '2-4 ml per liter of water',
+      'Yellow Sticky Traps': '1 trap per 10 square meters',
+      'Bacillus thuringiensis (Bt)': '2-4 grams per liter of water',
+      'Chlorantraniliprole': '0.5-1 ml per liter of water',
+      'Hand Picking + Neem': '2-3 ml neem per liter water'
+    };
+    return dosages[pesticide] || 'As per manufacturer instructions';
+  }
+
+  private getApplicationMethod(pesticide: string): string {
+    const methods: { [key: string]: string } = {
+      'Neem Oil Spray': 'Foliar spray, covering all plant surfaces',
+      'Pyrethrin Insecticide': 'Direct spray on affected areas',
+      'Insecticidal Soap': 'Thoroughly wet all plant surfaces',
+      'Imidacloprid Systemic': 'Soil drench or foliar spray',
+      'Spinosad Organic': 'Foliar spray covering all surfaces',
+      'Yellow Sticky Traps': 'Hang at plant height',
+      'Bacillus thuringiensis (Bt)': 'Foliar spray on affected areas',
+      'Chlorantraniliprole': 'Foliar spray with good coverage',
+      'Hand Picking + Neem': 'Remove pests manually, spray neem'
+    };
+    return methods[pesticide] || 'Apply as directed';
+  }
+
+  private getFrequency(pesticide: string): string {
+    const frequencies: { [key: string]: string } = {
+      'Neem Oil Spray': 'Every 7-10 days until infestation is controlled',
+      'Pyrethrin Insecticide': 'Every 5-7 days, maximum 3 applications',
+      'Insecticidal Soap': 'Every 3-5 days as needed',
+      'Imidacloprid Systemic': 'Every 14-21 days',
+      'Spinosad Organic': 'Every 7-10 days',
+      'Yellow Sticky Traps': 'Replace every 2-3 weeks',
+      'Bacillus thuringiensis (Bt)': 'Every 7-10 days',
+      'Chlorantraniliprole': 'Every 14-21 days',
+      'Hand Picking + Neem': 'Daily inspection, spray every 3-5 days'
+    };
+    return frequencies[pesticide] || 'As needed';
+  }
+
+  private getSafetyPrecautions(pesticide: string): string[] {
+    const precautions: { [key: string]: string[] } = {
+      'Neem Oil Spray': [
+        'Apply in early morning or late evening',
+        'Avoid spraying during flowering',
+        'Wear protective clothing',
+        'Keep away from children and pets'
+      ],
+      'Pyrethrin Insecticide': [
+        'Do not apply in direct sunlight',
+        'Wait 24 hours before harvest',
+        'Use protective equipment',
+        'Store in cool, dry place'
+      ],
+      'Insecticidal Soap': [
+        'Test on small area first',
+        'Apply when temperature is below 30°C',
+        'Rinse with water after 2 hours',
+        'Avoid contact with eyes'
+      ],
+      'Imidacloprid Systemic': [
+        'Do not apply near water bodies',
+        'Wait 21 days before harvest',
+        'Use protective equipment',
+        'Keep away from beneficial insects'
+      ],
+      'Spinosad Organic': [
+        'Apply in evening hours',
+        'Safe for beneficial insects',
+        'Wait 1 day before harvest',
+        'Store below 30°C'
+      ],
+      'Yellow Sticky Traps': [
+        'Position away from beneficial insects',
+        'Check traps regularly',
+        'Dispose of used traps properly',
+        'Keep out of reach of children'
+      ],
+      'Bacillus thuringiensis (Bt)': [
+        'Apply in evening for best results',
+        'Safe for beneficial insects',
+        'Store in refrigerator',
+        'Use within 2 years of purchase'
+      ],
+      'Chlorantraniliprole': [
+        'Do not apply in windy conditions',
+        'Wait 14 days before harvest',
+        'Use protective equipment',
+        'Avoid contact with skin'
+      ],
+      'Hand Picking + Neem': [
+        'Wear gloves when hand picking',
+        'Apply neem in evening',
+        'Dispose of pests safely',
+        'Monitor regularly'
+      ]
+    };
+    return precautions[pesticide] || [
+      'Read label instructions carefully',
+      'Use protective equipment',
+      'Keep away from children and pets',
+      'Store in original container'
+    ];
+  }
+
+  private getPrice(pesticide: string): string {
+    const prices: { [key: string]: string } = {
+      'Neem Oil Spray': '₹200-300 per 100ml',
+      'Pyrethrin Insecticide': '₹150-250 per 50ml',
+      'Insecticidal Soap': '₹100-150 per 500ml',
+      'Imidacloprid Systemic': '₹300-500 per 100ml',
+      'Spinosad Organic': '₹250-400 per 100ml',
+      'Yellow Sticky Traps': '₹50-100 per trap',
+      'Bacillus thuringiensis (Bt)': '₹200-350 per 100g',
+      'Chlorantraniliprole': '₹400-600 per 50ml',
+      'Hand Picking + Neem': '₹150-250 per 100ml neem'
+    };
+    return prices[pesticide] || '₹200-400 per unit';
   }
 
   getFallbackInsights(weatherData: ProcessedWeatherData[]): WeatherInsights {

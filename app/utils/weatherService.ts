@@ -78,9 +78,26 @@ export interface ProcessedWeatherData {
   gust: number;
 }
 
+export interface CurrentWeatherData {
+  temp: number;
+  condition: string;
+  icon: string;
+  humidity: number;
+  wind: number;
+  rain: number;
+  description: string;
+  pressure: number;
+  feelsLike: number;
+  visibility: number;
+  cloudCover: number;
+  windDirection: number;
+  gust: number;
+  uv: number;
+}
+
 class WeatherService {
   private static instance: WeatherService;
-  private readonly API_KEY = '7038720af8msha8cf65eeece1581p138d0bjsn4a067ea11ead';
+  private readonly API_KEY = 'b975570183msh2977cb85a845889p1efb91jsn7c7b26ac40b0';
   private readonly BASE_URL = 'https://open-weather13.p.rapidapi.com';
 
   static getInstance(): WeatherService {
@@ -108,6 +125,55 @@ class WeatherService {
     } catch (error) {
       console.error('Error getting current location:', error);
       return null;
+    }
+  }
+
+  async getCurrentWeather(): Promise<CurrentWeatherData | null> {
+    try {
+      console.log('Starting current weather fetch...');
+      
+      const location = await this.getCurrentLocation();
+      if (!location) {
+        console.log('No location available, using mock data');
+        return this.getMockCurrentWeatherData();
+      }
+
+      console.log('Location found:', location);
+
+      const { latitude, longitude } = location;
+      const url = `${this.BASE_URL}/latlon?latitude=${latitude}&longitude=${longitude}&lang=EN`;
+
+      console.log('Fetching current weather for:', { latitude, longitude });
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'X-RapidAPI-Key': this.API_KEY,
+          'X-RapidAPI-Host': 'open-weather13.p.rapidapi.com',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      console.log('API Response status:', response.status);
+
+      if (!response.ok) {
+        console.log('API Error:', response.status, response.statusText);
+        throw new Error(`Weather API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Current weather data received:', data);
+      
+      return this.processCurrentWeatherData(data);
+    } catch (error) {
+      console.error('Error fetching current weather data:', error);
+      // Return mock data as fallback
+      return this.getMockCurrentWeatherData();
     }
   }
 
@@ -163,6 +229,40 @@ class WeatherService {
       // Return mock data as fallback
       return this.getMockWeatherData();
     }
+  }
+
+  private processCurrentWeatherData(data: any): CurrentWeatherData {
+    // Process the current weather API response
+    const temp = Math.round(data.main.temp - 273.15); // Convert from Kelvin to Celsius
+    const feelsLike = Math.round(data.main.feels_like - 273.15);
+    const humidity = data.main.humidity;
+    const pressure = data.main.pressure;
+    const wind = Math.round(data.wind.speed * 3.6); // Convert m/s to km/h
+    const windDirection = data.wind.deg;
+    const gust = Math.round((data.wind.gust || 0) * 3.6);
+    const visibility = Math.round(data.visibility / 1000); // Convert to km
+    const cloudCover = data.clouds.all;
+    const rain = data.rain ? data.rain['1h'] || 0 : 0;
+    
+    // Calculate UV index based on cloud cover and temperature
+    const uvIndex = this.calculateUVIndex(cloudCover, temp + 273.15, new Date());
+    
+    return {
+      temp,
+      condition: this.getWeatherCondition(data.weather[0].main, data.weather[0].description),
+      icon: this.getWeatherIcon(data.weather[0].icon, data.weather[0].main),
+      humidity,
+      wind,
+      rain: Math.round(rain),
+      description: this.getFarmingDescription(temp, rain, cloudCover, wind),
+      pressure,
+      feelsLike,
+      visibility,
+      cloudCover,
+      windDirection,
+      gust,
+      uv: uvIndex
+    };
   }
 
   private processWeatherData(weatherData: OpenWeatherData[], city: OpenWeatherResponse['city']): ProcessedWeatherData[] {
@@ -447,6 +547,26 @@ class WeatherService {
         gust: 10,
       },
     ];
+  }
+
+  getMockCurrentWeatherData(): CurrentWeatherData {
+    // Fallback mock data for current weather
+    return {
+      temp: 28,
+      condition: 'Partly Cloudy',
+      icon: 'partly-sunny',
+      humidity: 65,
+      wind: 12,
+      rain: 20,
+      description: 'Good conditions for crop growth',
+      pressure: 1013,
+      feelsLike: 30,
+      visibility: 10,
+      cloudCover: 40,
+      windDirection: 180,
+      gust: 15,
+      uv: 6
+    };
   }
 }
 
