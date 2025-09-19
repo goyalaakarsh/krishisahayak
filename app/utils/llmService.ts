@@ -177,7 +177,7 @@ Format your response as JSON:
 Focus on practical, actionable advice for farmers. Consider crop protection, irrigation, pest control, and field work timing.`;
   }
 
-  private async callGeminiAPI(prompt: string): Promise<string> {
+  async callGeminiAPI(prompt: string): Promise<string> {
     const url = `${this.GEMINI_API_URL}?key=${this.EXPO_PUBLIC_GEMINI_API_KEY}`;
     
     const response = await fetch(url, {

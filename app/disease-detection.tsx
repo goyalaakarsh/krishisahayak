@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert,
     Animated,
@@ -14,128 +14,42 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { DiseaseData, diseaseService } from './utils/diseaseService';
 
-interface Disease {
-  id: string;
-  name: string;
-  image: string;
-  description: string;
-  symptoms: string[];
-  causes: string[];
-  solutions: string[];
-  prevention: string[];
-  severity: 'low' | 'medium' | 'high';
-}
-
-interface Crop {
-  name: string;
-  diseases: Disease[];
-}
+// Using DiseaseData from diseaseService instead of local interface
 
 export default function DiseaseDetection() {
   const [selectedCrop, setSelectedCrop] = useState<string>('');
   const [cropInput, setCropInput] = useState('');
   const [showDiseases, setShowDiseases] = useState(false);
-  const [selectedDisease, setSelectedDisease] = useState<Disease | null>(null);
+  const [selectedDisease, setSelectedDisease] = useState<DiseaseData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [diseases, setDiseases] = useState<DiseaseData[]>([]);
+  const [availableCrops, setAvailableCrops] = useState<string[]>([]);
+  const [isLoadingCrops, setIsLoadingCrops] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<DiseaseData[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Sample crop and disease data
-  const cropData: Crop[] = useMemo(() => [
-    {
-      name: 'tomato',
-      diseases: [
-        {
-          id: '1',
-          name: 'Early Blight',
-          image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=300&h=200&fit=crop',
-          description: 'A common fungal disease affecting tomato leaves and stems',
-          symptoms: ['Dark spots on leaves', 'Yellowing around spots', 'Concentric rings on lesions', 'Stem cankers'],
-          causes: ['Fungal spores', 'High humidity', 'Poor air circulation', 'Overhead watering'],
-          solutions: ['Remove affected leaves', 'Apply copper fungicide', 'Improve air circulation', 'Water at soil level'],
-          prevention: ['Crop rotation', 'Proper spacing', 'Avoid overhead watering', 'Regular pruning'],
-          severity: 'medium'
-        },
-        {
-          id: '2',
-          name: 'Late Blight',
-          image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=300&h=200&fit=crop',
-          description: 'A devastating fungal disease that can destroy entire crops',
-          symptoms: ['Water-soaked lesions', 'White mold on underside', 'Rapid spread', 'Plant death'],
-          causes: ['Phytophthora infestans', 'Cool, wet conditions', 'Poor drainage', 'Infected seed'],
-          solutions: ['Immediate fungicide treatment', 'Remove infected plants', 'Improve drainage', 'Apply preventive spray'],
-          prevention: ['Use disease-free seed', 'Proper spacing', 'Good drainage', 'Regular monitoring'],
-          severity: 'high'
-        },
-        {
-          id: '3',
-          name: 'Powdery Mildew',
-          image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=300&h=200&fit=crop',
-          description: 'White powdery coating on leaves and stems',
-          symptoms: ['White powdery coating', 'Stunted growth', 'Leaf curling', 'Reduced yield'],
-          causes: ['Fungal spores', 'High humidity', 'Poor air circulation', 'Dense foliage'],
-          solutions: ['Apply sulfur fungicide', 'Improve air circulation', 'Remove affected leaves', 'Reduce humidity'],
-          prevention: ['Proper spacing', 'Good air circulation', 'Avoid overhead watering', 'Regular pruning'],
-          severity: 'low'
-        }
-      ]
-    },
-    {
-      name: 'rice',
-      diseases: [
-        {
-          id: '4',
-          name: 'Rice Blast',
-          image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=300&h=200&fit=crop',
-          description: 'One of the most destructive rice diseases worldwide',
-          symptoms: ['Diamond-shaped lesions', 'Gray centers', 'Yellow halos', 'Spikelet sterility'],
-          causes: ['Magnaporthe oryzae', 'High humidity', 'Cool temperatures', 'Excessive nitrogen'],
-          solutions: ['Apply tricyclazole', 'Use resistant varieties', 'Proper nitrogen management', 'Field sanitation'],
-          prevention: ['Resistant varieties', 'Balanced fertilization', 'Proper water management', 'Crop rotation'],
-          severity: 'high'
-        },
-        {
-          id: '5',
-          name: 'Brown Spot',
-          image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=300&h=200&fit=crop',
-          description: 'Common fungal disease affecting rice leaves and grains',
-          symptoms: ['Brown circular spots', 'Yellow halos', 'Grain discoloration', 'Reduced yield'],
-          causes: ['Bipolaris oryzae', 'High humidity', 'Poor soil fertility', 'Infected seed'],
-          solutions: ['Apply fungicide', 'Improve soil fertility', 'Use clean seed', 'Proper water management'],
-          prevention: ['Seed treatment', 'Balanced fertilization', 'Good drainage', 'Crop rotation'],
-          severity: 'medium'
-        }
-      ]
-    },
-    {
-      name: 'wheat',
-      diseases: [
-        {
-          id: '6',
-          name: 'Rust',
-          image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=300&h=200&fit=crop',
-          description: 'Fungal disease causing orange or brown pustules on leaves',
-          symptoms: ['Orange/brown pustules', 'Yellowing leaves', 'Reduced photosynthesis', 'Stunted growth'],
-          causes: ['Puccinia species', 'High humidity', 'Warm temperatures', 'Dense planting'],
-          solutions: ['Apply fungicide', 'Use resistant varieties', 'Improve air circulation', 'Early detection'],
-          prevention: ['Resistant varieties', 'Proper spacing', 'Crop rotation', 'Field monitoring'],
-          severity: 'high'
-        },
-        {
-          id: '7',
-          name: 'Fusarium Head Blight',
-          image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=300&h=200&fit=crop',
-          description: 'Fungal disease affecting wheat heads and grains',
-          symptoms: ['Bleached spikelets', 'Pink/orange mold', 'Shriveled grains', 'Reduced quality'],
-          causes: ['Fusarium species', 'Wet conditions', 'Infected crop residue', 'Warm temperatures'],
-          solutions: ['Apply fungicide', 'Remove infected residue', 'Use resistant varieties', 'Proper timing'],
-          prevention: ['Crop rotation', 'Resistant varieties', 'Field sanitation', 'Proper timing'],
-          severity: 'medium'
-        }
-      ]
-    }
-  ], []);
+  // Load available crops on component mount
+  useEffect(() => {
+    const loadCrops = async () => {
+      try {
+        setIsLoadingCrops(true);
+        const crops = await diseaseService.getAvailableCrops();
+        setAvailableCrops(crops);
+      } catch (error) {
+        console.error('Error loading crops:', error);
+        Alert.alert('Error', 'Failed to load available crops');
+      } finally {
+        setIsLoadingCrops(false);
+      }
+    };
+
+    loadCrops();
+  }, []);
 
   // Animation effects
   useEffect(() => {
@@ -159,16 +73,16 @@ export default function DiseaseDetection() {
     }
   }, [isProcessing]);
 
-  const handleCropSubmit = useCallback(() => {
+  const handleCropSubmit = useCallback(async () => {
     if (cropInput.trim() === '') return;
 
     const cropName = cropInput.toLowerCase().trim();
-    const crop = cropData.find(c => c.name.toLowerCase() === cropName);
     
-    if (!crop) {
+    // Check if crop is available
+    if (!availableCrops.some(crop => crop.toLowerCase() === cropName)) {
       Alert.alert(
         'Crop Not Found',
-        'Sorry, we don\'t have disease information for this crop yet. Please try: Tomato, Rice, or Wheat.',
+        `Sorry, we don't have disease information for this crop yet. Available crops: ${availableCrops.join(', ')}`,
         [{ text: 'OK' }]
       );
       return;
@@ -177,15 +91,21 @@ export default function DiseaseDetection() {
     setSelectedCrop(cropName);
     setIsProcessing(true);
     
-    // Simulate processing delay
-    setTimeout(() => {
+    try {
+      // Load diseases for the selected crop
+      const cropDiseases = await diseaseService.getDiseasesByCrop(cropName);
+      setDiseases(cropDiseases);
       setShowDiseases(true);
-      setIsProcessing(false);
       Vibration.vibrate(50);
-    }, 1500);
-  }, [cropInput, cropData]);
+    } catch (error) {
+      console.error('Error loading diseases:', error);
+      Alert.alert('Error', 'Failed to load disease information for this crop');
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [cropInput, availableCrops]);
 
-  const handleDiseaseSelect = useCallback((disease: Disease) => {
+  const handleDiseaseSelect = useCallback((disease: DiseaseData) => {
     setSelectedDisease(disease);
     Vibration.vibrate(50);
   }, []);
@@ -199,7 +119,30 @@ export default function DiseaseDetection() {
     setCropInput('');
     setShowDiseases(false);
     setSelectedDisease(null);
+    setDiseases([]);
+    setSearchQuery('');
+    setSearchResults([]);
   }, []);
+
+  const handleSearch = useCallback(async () => {
+    if (searchQuery.trim() === '') {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const results = await diseaseService.searchDiseases(searchQuery);
+      setSearchResults(results);
+      setShowDiseases(true);
+      setSelectedCrop('Search Results');
+    } catch (error) {
+      console.error('Error searching diseases:', error);
+      Alert.alert('Error', 'Failed to search diseases');
+    } finally {
+      setIsSearching(false);
+    }
+  }, [searchQuery]);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -219,7 +162,7 @@ export default function DiseaseDetection() {
     }
   };
 
-  const currentCrop = cropData.find(c => c.name === selectedCrop);
+  // No need for currentCrop since we're using diseases state directly
 
   if (selectedDisease) {
     return (
@@ -250,20 +193,22 @@ export default function DiseaseDetection() {
           {/* Disease Solution */}
           <ScrollView className="flex-1 px-6 py-4">
             <View className="bg-white rounded-2xl p-6 shadow-sm mb-4">
-              <View className="flex-row items-center justify-between mb-4">
-                <Text className="text-2xl font-bold text-gray-900">{selectedDisease.name}</Text>
-                <View className={`px-3 py-1 rounded-full ${getSeverityColor(selectedDisease.severity)}`}>
+              <View className="flex-row items-center justify-between mb-6">
+                <Text className="text-2xl font-bold text-gray-900 flex-1 mr-4">{selectedDisease.name}</Text>
+                <View className={`px-3 py-2 rounded-full ${getSeverityColor(selectedDisease.severity)}`}>
                   <Text className="text-xs font-semibold">{getSeverityText(selectedDisease.severity)}</Text>
                 </View>
               </View>
               
-              <Image 
-                source={{ uri: selectedDisease.image }} 
-                className="w-full h-48 rounded-xl mb-4"
-                resizeMode="cover"
-              />
+              <View className="w-full h-56 rounded-xl mb-6 overflow-hidden shadow-sm">
+                <Image 
+                  source={selectedDisease.image} 
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              </View>
               
-              <Text className="text-gray-700 text-base mb-4">{selectedDisease.description}</Text>
+              <Text className="text-gray-700 text-base leading-6">{selectedDisease.description}</Text>
             </View>
 
             {/* Symptoms */}
@@ -315,7 +260,10 @@ export default function DiseaseDetection() {
     );
   }
 
-  if (showDiseases && currentCrop) {
+  if (showDiseases && (diseases.length > 0 || searchResults.length > 0)) {
+    const displayDiseases = searchResults.length > 0 ? searchResults : diseases;
+    const isSearchResults = searchResults.length > 0;
+    
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
         <KeyboardAvoidingView 
@@ -326,40 +274,55 @@ export default function DiseaseDetection() {
           <View className="px-6 py-4 bg-white border-b border-gray-100">
             <View className="flex-row items-center justify-between">
               <View>
-                <Text className="text-lg font-bold text-gray-900 capitalize">{selectedCrop} Diseases</Text>
-                <Text className="text-gray-600 text-sm">Select a disease to see solutions</Text>
+                <Text className="text-lg font-bold text-gray-900 capitalize">
+                  {isSearchResults ? `Search Results for "${searchQuery}"` : `${selectedCrop} Diseases`}
+                </Text>
+                <Text className="text-gray-600 text-sm">
+                  {isSearchResults ? 'Found diseases matching your search' : 'Select a disease to see solutions'}
+                </Text>
               </View>
               <TouchableOpacity
                 onPress={handleNewCrop}
                 className="px-4 py-2 bg-gray-100 rounded-lg"
               >
-                <Text className="text-gray-700 font-medium">New Crop</Text>
+                <Text className="text-gray-700 font-medium">New Search</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Diseases List */}
           <ScrollView className="flex-1 px-6 py-4">
-            {currentCrop.diseases.map((disease) => (
+            {displayDiseases.map((disease) => (
               <TouchableOpacity
                 key={disease.id}
                 onPress={() => handleDiseaseSelect(disease)}
-                className="bg-white rounded-2xl p-4 shadow-sm mb-4"
+                className="bg-white rounded-2xl p-5 shadow-sm mb-4"
               >
-                <View className="flex-row items-center mb-3">
-                  <Image 
-                    source={{ uri: disease.image }} 
-                    className="w-16 h-16 rounded-xl mr-4"
-                    resizeMode="cover"
-                  />
+                <View className="flex-row items-start">
+                  <View className="w-20 h-20 rounded-xl mr-4 flex-shrink-0 overflow-hidden shadow-sm">
+                    <Image 
+                      source={disease.image} 
+                      className="w-full h-full"
+                      resizeMode="cover"
+                    />
+                  </View>
                   <View className="flex-1">
-                    <Text className="text-lg font-bold text-gray-900 mb-1">{disease.name}</Text>
-                    <Text className="text-gray-600 text-sm mb-2">{disease.description}</Text>
-                    <View className={`px-2 py-1 rounded-full self-start ${getSeverityColor(disease.severity)}`}>
-                      <Text className="text-xs font-semibold">{getSeverityText(disease.severity)}</Text>
+                    <Text className="text-lg font-bold text-gray-900 mb-2">{disease.name}</Text>
+                    <Text className="text-gray-600 text-sm mb-3 leading-5" numberOfLines={3}>
+                      {disease.description}
+                    </Text>
+                    <View className="flex-row items-center justify-between">
+                      <View className={`px-3 py-1 rounded-full ${getSeverityColor(disease.severity)}`}>
+                        <Text className="text-xs font-semibold">{getSeverityText(disease.severity)}</Text>
+                      </View>
+                      {isSearchResults && (
+                        <Text className="text-xs text-gray-500 capitalize bg-gray-100 px-2 py-1 rounded">
+                          {disease.crop}
+                        </Text>
+                      )}
                     </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+                  <Ionicons name="chevron-forward" size={20} color="#9ca3af" className="ml-2 flex-shrink-0" />
                 </View>
               </TouchableOpacity>
             ))}
@@ -377,15 +340,61 @@ export default function DiseaseDetection() {
       >
         {/* Main Content */}
         <ScrollView className="flex-1 px-6 py-4">
-          {/* Input Section */}
+          {/* Search Section */}
           <View className="bg-white rounded-2xl p-6 shadow-sm mb-6">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">Enter Crop Name</Text>
+            <Text className="text-lg font-semibold text-gray-900 mb-4">Search Diseases</Text>
+            <View className="flex-row items-end space-x-3 mb-4">
+              <View className="flex-1 bg-gray-50 rounded-2xl px-4 py-3 border border-gray-200">
+                <TextInput
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Search by disease name or crop..."
+                  placeholderTextColor="#9ca3af"
+                  className="text-gray-900 text-base"
+                  onSubmitEditing={handleSearch}
+                  returnKeyType="search"
+                />
+              </View>
+              <TouchableOpacity
+                onPress={handleSearch}
+                disabled={searchQuery.trim() === '' || isSearching}
+                className={`w-12 h-12 rounded-full items-center justify-center shadow-sm ${
+                  searchQuery.trim() === '' || isSearching
+                    ? 'bg-gray-200' 
+                    : 'bg-blue-600 shadow-blue-200'
+                }`}
+              >
+                <Ionicons 
+                  name="search" 
+                  size={20} 
+                  color={searchQuery.trim() === '' || isSearching ? '#9ca3af' : 'white'} 
+                />
+              </TouchableOpacity>
+            </View>
+            {isSearching && (
+              <View className="flex-row items-center justify-center py-2">
+                <Animated.View 
+                  className="w-4 h-4 bg-blue-100 rounded-full items-center justify-center mr-2"
+                  style={{
+                    transform: [{ scale: pulseAnim }],
+                  }}
+                >
+                  <Ionicons name="search" size={8} color="#3b82f6" />
+                </Animated.View>
+                <Text className="text-gray-600 text-sm">Searching diseases...</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Crop Input Section */}
+          <View className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+            <Text className="text-lg font-semibold text-gray-900 mb-4">Or Browse by Crop</Text>
             <View className="flex-row items-end space-x-3">
               <View className="flex-1 bg-gray-50 rounded-2xl px-4 py-3 border border-gray-200">
                 <TextInput
                   value={cropInput}
                   onChangeText={setCropInput}
-                  placeholder="e.g., Tomato, Rice, Wheat..."
+                  placeholder="e.g., Rice, Wheat, Corn, Sugarcane..."
                   placeholderTextColor="#9ca3af"
                   className="text-gray-900 text-base"
                   onSubmitEditing={handleCropSubmit}
@@ -394,17 +403,17 @@ export default function DiseaseDetection() {
               </View>
               <TouchableOpacity
                 onPress={handleCropSubmit}
-                disabled={cropInput.trim() === ''}
+                disabled={cropInput.trim() === '' || isProcessing}
                 className={`w-12 h-12 rounded-full items-center justify-center shadow-sm ${
-                  cropInput.trim() === '' 
+                  cropInput.trim() === '' || isProcessing
                     ? 'bg-gray-200' 
                     : 'bg-green-600 shadow-green-200'
                 }`}
               >
                 <Ionicons 
-                  name="search" 
+                  name="leaf" 
                   size={20} 
-                  color={cropInput.trim() === '' ? '#9ca3af' : 'white'} 
+                  color={cropInput.trim() === '' || isProcessing ? '#9ca3af' : 'white'} 
                 />
               </TouchableOpacity>
             </View>
@@ -431,17 +440,31 @@ export default function DiseaseDetection() {
           <View className="bg-white rounded-2xl p-6 shadow-sm mb-6">
             <Text className="text-lg font-semibold text-gray-900 mb-4">Available Crops</Text>
             <Text className="text-gray-600 text-sm mb-4">We currently have disease information for these crops:</Text>
-            <View className="space-y-3">
-              {cropData.map((crop, index) => (
-                <View key={index} className="flex-row items-center justify-between p-3 bg-gray-50 rounded-xl">
-                  <View className="flex-row items-center">
-                    <Ionicons name="leaf" size={20} color="#059669" />
-                    <Text className="text-gray-900 font-medium ml-3 capitalize">{crop.name}</Text>
+            {isLoadingCrops ? (
+              <View className="flex-row items-center justify-center py-4">
+                <Animated.View 
+                  className="w-6 h-6 bg-green-100 rounded-full items-center justify-center mr-3"
+                  style={{
+                    transform: [{ scale: pulseAnim }],
+                  }}
+                >
+                  <Ionicons name="leaf" size={12} color="#059669" />
+                </Animated.View>
+                <Text className="text-gray-600">Loading crops...</Text>
+              </View>
+            ) : (
+              <View className="space-y-3">
+                {availableCrops.map((crop, index) => (
+                  <View key={index} className="flex-row items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <View className="flex-row items-center">
+                      <Ionicons name="leaf" size={20} color="#059669" />
+                      <Text className="text-gray-900 font-medium ml-3 capitalize">{crop}</Text>
+                    </View>
+                    <Text className="text-gray-500 text-sm">Diseases available</Text>
                   </View>
-                  <Text className="text-gray-500 text-sm">{crop.diseases.length} diseases</Text>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+            )}
           </View>
 
           {/* Features */}
