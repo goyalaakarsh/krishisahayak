@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { geocodingService, LocationData } from '../utils/geocodingService';
+import { getLanguageTexts } from '../utils/languages';
 import { CropRecommendation, CropRecommendationRequest, llmService } from '../utils/llmService';
 import { permissionManager } from '../utils/permissions';
 
@@ -15,6 +16,7 @@ export default function CropRecommendations() {
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [locationPermission, setLocationPermission] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState('en');
   const [farmerPreferences, setFarmerPreferences] = useState({
     waterAvailability: 'Medium' as 'High' | 'Medium' | 'Low',
     budget: 'Medium' as 'Low' | 'Medium' | 'High',
@@ -23,20 +25,23 @@ export default function CropRecommendations() {
   });
   const [lastAnalysisTime, setLastAnalysisTime] = useState<Date | null>(null);
 
+  const t = getLanguageTexts(currentLanguage);
+
+  // Update seasons and soil types when language changes
   const seasons = [
-    { id: 'kharif', name: 'Kharif', months: 'Jun-Oct' },
-    { id: 'rabi', name: 'Rabi', months: 'Nov-Mar' },
-    { id: 'zaid', name: 'Zaid', months: 'Mar-Jun' }
+    { id: 'kharif', name: t.kharif, months: t.kharifMonths },
+    { id: 'rabi', name: t.rabi, months: t.rabiMonths },
+    { id: 'zaid', name: t.zaid, months: t.zaidMonths }
   ];
 
   const soilTypes = [
-    { id: 'loamy', name: 'Loamy', description: 'Best for most crops', color: '#8B4513' },
-    { id: 'clay', name: 'Clay', description: 'Good water retention', color: '#A0522D' },
-    { id: 'sandy', name: 'Sandy', description: 'Good drainage', color: '#F4A460' },
-    { id: 'silt', name: 'Silt', description: 'Fertile soil', color: '#D2B48C' },
-    { id: 'black', name: 'Black Soil', description: 'Rich in nutrients', color: '#2F2F2F' },
-    { id: 'red', name: 'Red Soil', description: 'Iron-rich soil', color: '#CD5C5C' },
-    { id: 'alluvial', name: 'Alluvial', description: 'River-deposited soil', color: '#DEB887' }
+    { id: 'loamy', name: t.loamy, description: t.loamyDesc, color: '#8B4513' },
+    { id: 'clay', name: t.clay, description: t.clayDesc, color: '#A0522D' },
+    { id: 'sandy', name: t.sandy, description: t.sandyDesc, color: '#F4A460' },
+    { id: 'silt', name: t.silt, description: t.siltDesc, color: '#D2B48C' },
+    { id: 'black', name: t.blackSoil, description: t.blackSoilDesc, color: '#2F2F2F' },
+    { id: 'red', name: t.redSoil, description: t.redSoilDesc, color: '#CD5C5C' },
+    { id: 'alluvial', name: t.alluvial, description: t.alluvialDesc, color: '#DEB887' }
   ];
 
   // Initialize location permission check
@@ -89,11 +94,11 @@ export default function CropRecommendations() {
         }
       }
       
-      Alert.alert('Location Not Found', 'Could not find the specified location. Please try a different location name.');
+      Alert.alert(t.locationNotFound, t.couldNotFindLocation);
       return null;
     } catch (error) {
       console.error('Error getting location from manual input:', error);
-      Alert.alert('Error', 'Failed to get location information. Please try again.');
+      Alert.alert(t.error, t.failedToGetLocation);
       return null;
     } finally {
       setIsLoading(false);
@@ -106,7 +111,7 @@ export default function CropRecommendations() {
       
       // Validate inputs
       if (!selectedSeason || !selectedSoil) {
-        Alert.alert('Missing Information', 'Please select both season and soil type.');
+        Alert.alert(t.missingInformation, t.pleaseSelectBoth);
         setIsAnalyzing(false);
         return;
       }
@@ -125,8 +130,8 @@ export default function CropRecommendations() {
       // If no location data available, show error
       if (!locationData) {
         Alert.alert(
-          'Location Required', 
-          'Please select current location or enter a manual location to get crop recommendations.'
+          t.locationRequired, 
+          t.pleaseSelectLocation
         );
         setIsAnalyzing(false);
         return;
@@ -156,7 +161,7 @@ export default function CropRecommendations() {
       
     } catch (error) {
       console.error('Error generating recommendations:', error);
-      Alert.alert('Error', 'Failed to generate crop recommendations. Please try again.');
+      Alert.alert(t.error, t.failedToGenerateRecommendations);
     } finally {
       setIsAnalyzing(false);
     }
@@ -179,15 +184,43 @@ export default function CropRecommendations() {
   return (
     <View className="flex-1 bg-gray-50">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        {/* Language Toggle */}
+        <View className="px-6 py-4 bg-white border-b border-gray-100">
+          <View className="flex-row items-center justify-between">
+            {/* <Text className="text-lg font-semibold text-gray-900">{t.title}</Text> */}
+            <View className="flex-row bg-gray-100 rounded-lg p-1">
+              {[
+                { code: 'en', name: 'English', flag: '🇺🇸' },
+                { code: 'hi', name: 'हिंदी', flag: '🇮🇳' },
+                { code: 'pa', name: 'ਪੰਜਾਬੀ', flag: '🇮🇳' }
+              ].map((lang) => (
+                <TouchableOpacity
+                  key={lang.code}
+                  onPress={() => setCurrentLanguage(lang.code)}
+                  className={`px-3 py-2 rounded-md ${
+                    currentLanguage === lang.code
+                      ? 'bg-white shadow-sm'
+                      : 'bg-transparent'
+                  }`}
+                >
+                  <Text className={`text-sm font-medium ${
+                    currentLanguage === lang.code ? 'text-gray-900' : 'text-gray-600'
+                  }`}>
+                    {lang.flag} {lang.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+
         {/* AI Analysis Card */}
         <View className="px-6 py-6">
-         
-
           {/* Filters */}
           <View className="space-y-4 mb-6">
             {/* Season Selection */}
             <View>
-              <Text className="text-lg font-semibold text-gray-900 mb-3">Growing Season</Text>
+              <Text className="text-lg font-semibold text-gray-900 mb-3">{t.growingSeason}</Text>
               <View className="flex-row flex-wrap">
                 {seasons.map((season) => (
                   <TouchableOpacity
@@ -216,7 +249,7 @@ export default function CropRecommendations() {
 
             {/* Soil Type Selection */}
             <View>
-              <Text className="text-lg font-semibold text-gray-900 mb-3">Soil Type</Text>
+              <Text className="text-lg font-semibold text-gray-900 mb-3">{t.soilType}</Text>
               <View className="flex-row flex-wrap">
                 {soilTypes.map((soil) => (
                   <TouchableOpacity
@@ -245,7 +278,7 @@ export default function CropRecommendations() {
 
             {/* Location Selection */}
             <View>
-              <Text className="text-lg font-semibold text-gray-900 mb-3">Location</Text>
+              <Text className="text-lg font-semibold text-gray-900 mb-3">{t.location}</Text>
               
               {/* Location Type Selection */}
               <View className="flex-row mb-4">
@@ -260,7 +293,7 @@ export default function CropRecommendations() {
                   <Text className={`font-semibold text-center ${
                     locationType === 'current' ? 'text-white' : 'text-gray-700'
                   }`}>
-                    Current Location
+                    {t.currentLocation}
                   </Text>
                 </TouchableOpacity>
                   <TouchableOpacity
@@ -274,7 +307,7 @@ export default function CropRecommendations() {
                   <Text className={`font-semibold text-center ${
                     locationType === 'manual' ? 'text-white' : 'text-gray-700'
                   }`}>
-                    Enter Location
+                    {t.enterLocation}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -285,7 +318,7 @@ export default function CropRecommendations() {
                   {isLoading ? (
                     <View className="flex-row items-center">
                       <ActivityIndicator size="small" color="#059669" />
-                      <Text className="text-gray-600 ml-2">Getting your location...</Text>
+                      <Text className="text-gray-600 ml-2">{t.gettingLocation}</Text>
                     </View>
                   ) : currentLocation ? (
                     <View>
@@ -298,22 +331,22 @@ export default function CropRecommendations() {
                     </View>
                   ) : !locationPermission ? (
                     <View>
-                      <Text className="text-gray-600">Location permission required</Text>
+                      <Text className="text-gray-600">{t.locationPermissionRequired}</Text>
                       <TouchableOpacity
                         onPress={checkLocationPermission}
                         className="mt-2"
                       >
-                        <Text className="text-green-600 font-semibold">Grant Permission</Text>
+                        <Text className="text-green-600 font-semibold">{t.grantPermission}</Text>
                       </TouchableOpacity>
                     </View>
                   ) : (
                     <View>
-                      <Text className="text-gray-600">Location not available</Text>
+                      <Text className="text-gray-600">{t.locationNotAvailable}</Text>
                       <TouchableOpacity
                         onPress={getCurrentLocation}
                         className="mt-2"
                       >
-                        <Text className="text-green-600 font-semibold">Retry</Text>
+                        <Text className="text-green-600 font-semibold">{t.retry}</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -326,12 +359,12 @@ export default function CropRecommendations() {
                   <TextInput
                     value={manualLocation}
                     onChangeText={setManualLocation}
-                    placeholder="Enter city, state, or district (e.g., Pune, Maharashtra)"
+                    placeholder={t.enterLocationPlaceholder}
                     placeholderTextColor="#9ca3af"
                     className="text-gray-900 text-base border-b border-gray-200 pb-2"
                   />
                   <Text className="text-gray-500 text-xs mt-2">
-                    Enter a location name to get location-specific recommendations
+                    {t.enterLocationHint}
                   </Text>
                 </View>
               )}
@@ -339,26 +372,30 @@ export default function CropRecommendations() {
 
             {/* Farmer Preferences */}
             <View>
-              <Text className="text-lg font-semibold text-gray-900 mb-3">Your Farming Profile</Text>
+              <Text className="text-lg font-semibold text-gray-900 mb-3">{t.farmingProfile}</Text>
               
               {/* Water Availability */}
               <View className="mb-4">
-                <Text className="text-sm font-medium text-gray-700 mb-2">Water Availability</Text>
+                <Text className="text-sm font-medium text-gray-700 mb-2">{t.waterAvailability}</Text>
                 <View className="flex-row flex-wrap">
-                  {['High', 'Medium', 'Low'].map((level) => (
+                  {[
+                    { key: 'High', label: t.high },
+                    { key: 'Medium', label: t.medium },
+                    { key: 'Low', label: t.low }
+                  ].map((level) => (
                     <TouchableOpacity
-                      key={level}
-                      onPress={() => setFarmerPreferences(prev => ({ ...prev, waterAvailability: level as any }))}
+                      key={level.key}
+                      onPress={() => setFarmerPreferences(prev => ({ ...prev, waterAvailability: level.key as any }))}
                       className={`mr-2 mb-2 px-3 py-2 rounded-lg border ${
-                        farmerPreferences.waterAvailability === level
+                        farmerPreferences.waterAvailability === level.key
                           ? 'bg-blue-100 border-blue-500'
                           : 'bg-white border-gray-200'
                       }`}
                     >
                       <Text className={`text-sm font-medium ${
-                        farmerPreferences.waterAvailability === level ? 'text-blue-700' : 'text-gray-600'
+                        farmerPreferences.waterAvailability === level.key ? 'text-blue-700' : 'text-gray-600'
                       }`}>
-                        {level}
+                        {level.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -367,22 +404,26 @@ export default function CropRecommendations() {
 
               {/* Budget Level */}
               <View className="mb-4">
-                <Text className="text-sm font-medium text-gray-700 mb-2">Budget Level</Text>
+                <Text className="text-sm font-medium text-gray-700 mb-2">{t.budgetLevel}</Text>
                 <View className="flex-row flex-wrap">
-                  {['Low', 'Medium', 'High'].map((level) => (
+                  {[
+                    { key: 'Low', label: t.low },
+                    { key: 'Medium', label: t.medium },
+                    { key: 'High', label: t.high }
+                  ].map((level) => (
                     <TouchableOpacity
-                      key={level}
-                      onPress={() => setFarmerPreferences(prev => ({ ...prev, budget: level as any }))}
+                      key={level.key}
+                      onPress={() => setFarmerPreferences(prev => ({ ...prev, budget: level.key as any }))}
                       className={`mr-2 mb-2 px-3 py-2 rounded-lg border ${
-                        farmerPreferences.budget === level
+                        farmerPreferences.budget === level.key
                           ? 'bg-green-100 border-green-500'
                           : 'bg-white border-gray-200'
                       }`}
                     >
                       <Text className={`text-sm font-medium ${
-                        farmerPreferences.budget === level ? 'text-green-700' : 'text-gray-600'
+                        farmerPreferences.budget === level.key ? 'text-green-700' : 'text-gray-600'
                       }`}>
-                        {level}
+                        {level.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -391,22 +432,26 @@ export default function CropRecommendations() {
 
               {/* Experience Level */}
               <View className="mb-4">
-                <Text className="text-sm font-medium text-gray-700 mb-2">Experience Level</Text>
+                <Text className="text-sm font-medium text-gray-700 mb-2">{t.experienceLevel}</Text>
                 <View className="flex-row flex-wrap">
-                  {['Beginner', 'Intermediate', 'Expert'].map((level) => (
+                  {[
+                    { key: 'Beginner', label: t.beginner },
+                    { key: 'Intermediate', label: t.intermediate },
+                    { key: 'Expert', label: t.expert }
+                  ].map((level) => (
                     <TouchableOpacity
-                      key={level}
-                      onPress={() => setFarmerPreferences(prev => ({ ...prev, experience: level as any }))}
+                      key={level.key}
+                      onPress={() => setFarmerPreferences(prev => ({ ...prev, experience: level.key as any }))}
                       className={`mr-2 mb-2 px-3 py-2 rounded-lg border ${
-                        farmerPreferences.experience === level
+                        farmerPreferences.experience === level.key
                           ? 'bg-purple-100 border-purple-500'
                           : 'bg-white border-gray-200'
                       }`}
                     >
                       <Text className={`text-sm font-medium ${
-                        farmerPreferences.experience === level ? 'text-purple-700' : 'text-gray-600'
+                        farmerPreferences.experience === level.key ? 'text-purple-700' : 'text-gray-600'
                       }`}>
-                        {level}
+                        {level.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -415,22 +460,26 @@ export default function CropRecommendations() {
 
               {/* Farm Size */}
               <View className="mb-4">
-                <Text className="text-sm font-medium text-gray-700 mb-2">Farm Size</Text>
+                <Text className="text-sm font-medium text-gray-700 mb-2">{t.farmSize}</Text>
                 <View className="flex-row flex-wrap">
-                  {['Small', 'Medium', 'Large'].map((size) => (
+                  {[
+                    { key: 'Small', label: t.small },
+                    { key: 'Medium', label: t.medium },
+                    { key: 'Large', label: t.large }
+                  ].map((size) => (
                     <TouchableOpacity
-                      key={size}
-                      onPress={() => setFarmerPreferences(prev => ({ ...prev, farmSize: size as any }))}
+                      key={size.key}
+                      onPress={() => setFarmerPreferences(prev => ({ ...prev, farmSize: size.key as any }))}
                       className={`mr-2 mb-2 px-3 py-2 rounded-lg border ${
-                        farmerPreferences.farmSize === size
+                        farmerPreferences.farmSize === size.key
                           ? 'bg-orange-100 border-orange-500'
                           : 'bg-white border-gray-200'
                       }`}
                     >
                       <Text className={`text-sm font-medium ${
-                        farmerPreferences.farmSize === size ? 'text-orange-700' : 'text-gray-600'
+                        farmerPreferences.farmSize === size.key ? 'text-orange-700' : 'text-gray-600'
                       }`}>
-                        {size}
+                        {size.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -448,10 +497,10 @@ export default function CropRecommendations() {
               {isAnalyzing ? (
                 <View className="flex-row items-center justify-center">
                   <ActivityIndicator size="small" color="white" />
-                  <Text className="text-white font-semibold ml-2">Analyzing...</Text>
+                  <Text className="text-white font-semibold ml-2">{t.analyzing}</Text>
                 </View>
               ) : (
-                <Text className="text-white font-semibold text-center">Recommend</Text>
+                <Text className="text-white font-semibold text-center">{t.recommend}</Text>
               )}
             </TouchableOpacity>
         
@@ -461,7 +510,7 @@ export default function CropRecommendations() {
           <View>
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-xl font-bold text-gray-900">
-                {recommendations.length > 0 ? 'Recommended Crops' : 'Get Your Crop Recommendations'}
+                {recommendations.length > 0 ? t.recommendedCrops : t.getYourCropRecommendations}
               </Text>
               {recommendations.length > 0 && (
                 <TouchableOpacity
@@ -471,7 +520,7 @@ export default function CropRecommendations() {
                 >
                   <Ionicons name="refresh" size={16} color="#059669" />
                   <Text className="text-green-700 font-medium ml-1 text-sm">
-                    {isAnalyzing ? 'Updating...' : 'Refresh'}
+                    {isAnalyzing ? t.updating : t.refresh}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -482,17 +531,17 @@ export default function CropRecommendations() {
                 <View className="items-center">
                   <Ionicons name="leaf" size={48} color="#9ca3af" />
                   <Text className="text-gray-600 text-center mt-4 mb-2">
-                    No recommendations yet
+                    {t.noRecommendationsYet}
                   </Text>
                   <Text className="text-gray-500 text-center text-sm mb-4">
-                    Select your preferences and click "Recommend" to get personalized crop recommendations
+                    {t.noRecommendationsDesc}
                   </Text>
                   <TouchableOpacity
                     onPress={handleGetRecommendations}
                     disabled={isAnalyzing}
                     className="bg-green-600 px-6 py-3 rounded-lg"
                   >
-                    <Text className="text-white font-semibold">Get Recommendations</Text>
+                    <Text className="text-white font-semibold">{t.getRecommendations}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -511,7 +560,7 @@ export default function CropRecommendations() {
                     <View className="items-end">
                       <View className="bg-green-100 px-3 py-1 rounded-full">
                         <Text className="text-green-800 font-semibold text-sm">
-                          {crop.suitability}% Match
+                          {crop.suitability}% {t.match}
                         </Text>
                       </View>
                     </View>
@@ -519,15 +568,15 @@ export default function CropRecommendations() {
 
                   <View className="flex-row justify-between mb-3">
                     <View className="flex-1">
-                      <Text className="text-gray-600 text-sm">Expected Yield</Text>
+                      <Text className="text-gray-600 text-sm">{t.expectedYield}</Text>
                       <Text className="font-semibold text-gray-900">{crop.yield}</Text>
                     </View>
                     <View className="flex-1">
-                      <Text className="text-gray-600 text-sm">Profit Range</Text>
+                      <Text className="text-gray-600 text-sm">{t.profitRange}</Text>
                       <Text className="font-semibold text-green-600">{crop.profit}</Text>
                     </View>
                     <View className="flex-1">
-                      <Text className="text-gray-600 text-sm">Duration</Text>
+                      <Text className="text-gray-600 text-sm">{t.duration}</Text>
                       <Text className="font-semibold text-gray-900">{crop.duration}</Text>
                     </View>
                   </View>
@@ -535,38 +584,38 @@ export default function CropRecommendations() {
                   <View className="flex-row items-center justify-between mb-3">
                     <View className="flex-row items-center">
                       <Ionicons name="water" size={16} color="#6b7280" />
-                      <Text className="text-gray-600 text-sm ml-1">{crop.water} Water</Text>
+                      <Text className="text-gray-600 text-sm ml-1">{crop.water} {t.water}</Text>
                     </View>
                     <View className="flex-row items-center">
                       <Ionicons name="leaf" size={16} color="#6b7280" />
-                      <Text className="text-gray-600 text-sm ml-1">Sustainability: {crop.sustainability}/10</Text>
+                      <Text className="text-gray-600 text-sm ml-1">{t.sustainability}: {crop.sustainability}/10</Text>
                     </View>
                   </View>
 
                   <View className="flex-row items-center justify-between mb-3">
                     <View className="flex-row items-center">
                       <Ionicons name="trending-up" size={16} color="#6b7280" />
-                      <Text className="text-gray-600 text-sm ml-1">ROI: {crop.expectedROI}</Text>
+                      <Text className="text-gray-600 text-sm ml-1">{t.roi}: {crop.expectedROI}</Text>
                     </View>
                     <View className="flex-row items-center">
                       <Ionicons name="time" size={16} color="#6b7280" />
-                      <Text className="text-gray-600 text-sm ml-1">Plant: {crop.bestPlantingTime}</Text>
+                      <Text className="text-gray-600 text-sm ml-1">{t.plant}: {crop.bestPlantingTime}</Text>
                     </View>
                   </View>
 
                   <View className="flex-row items-center justify-between mb-3">
                     <View className="flex-row items-center">
                       <Ionicons name="storefront" size={16} color="#6b7280" />
-                      <Text className="text-gray-600 text-sm ml-1">Demand: {crop.marketDemand}</Text>
+                      <Text className="text-gray-600 text-sm ml-1">{t.demand}: {crop.marketDemand}</Text>
                     </View>
                     <View className="flex-row items-center">
                       <Ionicons name="warning" size={16} color="#6b7280" />
-                      <Text className="text-gray-600 text-sm ml-1">Risk: {crop.riskLevel}</Text>
+                      <Text className="text-gray-600 text-sm ml-1">{t.risk}: {crop.riskLevel}</Text>
                     </View>
                   </View>
 
                   <View className="border-t border-gray-100 pt-3">
-                    <Text className="text-gray-600 text-sm mb-2">Key Benefits:</Text>
+                    <Text className="text-gray-600 text-sm mb-2">{t.keyBenefits}:</Text>
                     <View className="flex-row flex-wrap">
                       {crop.benefits.map((benefit, index) => (
                         <View key={index} className="bg-green-50 px-2 py-1 rounded-full mr-2 mb-2">
@@ -577,7 +626,7 @@ export default function CropRecommendations() {
                   </View>
 
                   <View className="border-t border-gray-100 pt-3 mt-3">
-                    <Text className="text-gray-600 text-sm mb-2">Requirements:</Text>
+                    <Text className="text-gray-600 text-sm mb-2">{t.requirements}:</Text>
                     <View className="flex-row flex-wrap">
                       {crop.requirements.map((requirement, index) => (
                         <View key={index} className="bg-blue-50 px-2 py-1 rounded-full mr-2 mb-2">
@@ -588,7 +637,7 @@ export default function CropRecommendations() {
                   </View>
 
                   <TouchableOpacity className="btn-primary mt-4">
-                    <Text className="text-white font-semibold text-center">View Details</Text>
+                    <Text className="text-white font-semibold text-center">{t.viewDetails}</Text>
                   </TouchableOpacity>
                 </View>
               ))}
