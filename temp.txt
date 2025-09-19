@@ -1,0 +1,37 @@
+- MARKET PRICE API INTEGRATION
+- WEATHER API INTEGRATION
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+- welcome
+- dashboard
+- crop scanner
+- weather forecast
+- market insights
+- krishisaathi
+- crop recommendations
+
+
+- pest detection (pesticide suggestion automatically)
+- direct pesticide query 
+- fertilizer suggestion (using llm)
+- weather
+- market
+
+
+
+
+
+
+

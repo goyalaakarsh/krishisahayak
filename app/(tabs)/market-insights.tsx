@@ -1,9 +1,41 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { MarketInsights, marketService } from '../utils/marketService';
 
-export default function MarketInsights() {
+export default function MarketInsightsScreen() {
   const [selectedCrop, setSelectedCrop] = useState('rice');
+  const [marketInsights, setMarketInsights] = useState<MarketInsights | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+
+  useEffect(() => {
+    fetchMarketData();
+  }, []);
+
+  const fetchMarketData = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching market data...');
+      
+      const insights = await marketService.getMarketInsights();
+      console.log('Market insights received:', insights);
+      
+      setMarketInsights(insights);
+    } catch (error) {
+      console.error('Error fetching market data:', error);
+      Alert.alert('Error', 'Failed to fetch market data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchMarketData();
+    setRefreshing(false);
+  }, []);
 
   const crops = [
     { id: 'rice', name: 'Rice', icon: '🌾' },
@@ -14,72 +46,64 @@ export default function MarketInsights() {
     { id: 'potato', name: 'Potato', icon: '🥔' }
   ];
 
-  const marketData = [
-    {
-      crop: 'Rice',
-      currentPrice: '₹2,850',
-      change: '+5.2%',
-      trend: 'up',
-      demand: 'High',
-      supply: 'Medium',
-      forecast: 'Prices expected to rise 8-12% in next month',
-      factors: ['Export demand increasing', 'Monsoon concerns', 'Government MSP support']
-    },
-    {
-      crop: 'Wheat',
-      currentPrice: '₹2,200',
-      change: '-2.1%',
-      trend: 'down',
-      demand: 'Medium',
-      supply: 'High',
-      forecast: 'Prices may stabilize with good harvest',
-      factors: ['Good production this year', 'Storage capacity issues', 'Export restrictions']
-    },
-    {
-      crop: 'Sugarcane',
-      currentPrice: '₹3,200',
-      change: '+8.5%',
-      trend: 'up',
-      demand: 'Very High',
-      supply: 'Low',
-      forecast: 'Strong upward trend expected',
-      factors: ['Ethanol demand rising', 'Sugar shortage', 'Export opportunities']
+  const getTrendIcon = (trend: string) => {
+    switch (trend) {
+      case 'up': return 'trending-up';
+      case 'down': return 'trending-down';
+      default: return 'remove';
     }
-  ];
+  };
 
-  const priceHistory = [
-    { month: 'Jan', price: 2650 },
-    { month: 'Feb', price: 2720 },
-    { month: 'Mar', price: 2780 },
-    { month: 'Apr', price: 2750 },
-    { month: 'May', price: 2820 },
-    { month: 'Jun', price: 2850 }
-  ];
-
-  const newsItems = [
-    {
-      title: 'Rice Export Ban Lifted',
-      summary: 'Government allows rice exports with new regulations',
-      impact: 'Positive',
-      time: '2 hours ago'
-    },
-    {
-      title: 'Monsoon Arrives Early',
-      summary: 'Good rainfall expected to boost crop production',
-      impact: 'Positive',
-      time: '1 day ago'
-    },
-    {
-      title: 'Fertilizer Prices Rise',
-      summary: 'Input costs increase by 15% affecting profit margins',
-      impact: 'Negative',
-      time: '3 days ago'
+  const getTrendColor = (trend: string) => {
+    switch (trend) {
+      case 'up': return '#10b981';
+      case 'down': return '#ef4444';
+      default: return '#6b7280';
     }
-  ];
+  };
+
+  const getImpactColor = (impact: string) => {
+    switch (impact) {
+      case 'Positive': return '#10b981';
+      case 'Negative': return '#ef4444';
+      default: return '#6b7280';
+    }
+  };
+
+  const getImpactBgColor = (impact: string) => {
+    switch (impact) {
+      case 'Positive': return 'bg-green-100';
+      case 'Negative': return 'bg-red-100';
+      default: return 'bg-gray-100';
+    }
+  };
+
+  const getImpactTextColor = (impact: string) => {
+    switch (impact) {
+      case 'Positive': return 'text-green-800';
+      case 'Negative': return 'text-red-800';
+      default: return 'text-gray-800';
+    }
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-gray-50 items-center justify-center">
+        <Ionicons name="refresh" size={32} color="#6b7280" className="animate-spin" />
+        <Text className="text-gray-600 mt-4">Loading market data...</Text>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-gray-50">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        className="flex-1" 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />
+        }
+      >
         {/* Header */}
         <View className="px-6 py-6">
           <View className="gradient-purple rounded-2xl p-6 mb-6">
@@ -89,7 +113,9 @@ export default function MarketInsights() {
               </View>
               <View className="flex-1">
                 <Text className="text-white text-lg font-semibold">Market Intelligence</Text>
-                <Text className="text-purple-100 text-sm">Real-time price trends & insights</Text>
+                <Text className="text-purple-100 text-sm">
+                  {marketInsights?.location.displayName || 'Loading location...'}
+                </Text>
               </View>
             </View>
           </View>
@@ -122,135 +148,195 @@ export default function MarketInsights() {
           {/* Market Overview */}
           <View className="mb-6">
             <Text className="text-xl font-bold text-gray-900 mb-4">Market Overview</Text>
-            {marketData.map((data, index) => (
-              <View key={index} className="card mb-4">
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center">
-                    <Text className="text-2xl mr-3">🌾</Text>
-                    <View>
-                      <Text className="text-lg font-bold text-gray-900">{data.crop}</Text>
-                      <Text className="text-gray-600 text-sm">Current Market Price</Text>
+            {marketInsights?.commodities && marketInsights.commodities.length > 0 ? (
+              marketInsights.commodities.map((data, index) => (
+                <View key={index} className="card mb-4">
+                  <View className="flex-row items-center justify-between mb-3">
+                    <View className="flex-row items-center">
+                      <Text className="text-2xl mr-3">🌾</Text>
+                      <View>
+                        <Text className="text-lg font-bold text-gray-900">{data.commodity}</Text>
+                        <Text className="text-gray-600 text-sm">{data.variety} - {data.grade}</Text>
+                      </View>
                     </View>
-                  </View>
-                  <View className="items-end">
-                    <Text className="text-2xl font-bold text-gray-900">{data.currentPrice}</Text>
-                    <View className={`flex-row items-center ${
-                      data.trend === 'up' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      <Ionicons 
-                        name={data.trend === 'up' ? 'trending-up' : 'trending-down'} 
-                        size={16} 
-                        color={data.trend === 'up' ? '#10b981' : '#ef4444'} 
-                      />
-                      <Text className="font-semibold ml-1">{data.change}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View className="flex-row justify-between mb-3">
-                  <View className="flex-1">
-                    <Text className="text-gray-600 text-sm">Demand</Text>
-                    <View className={`px-2 py-1 rounded-full ${
-                      data.demand === 'High' ? 'bg-green-100' :
-                      data.demand === 'Very High' ? 'bg-green-200' : 'bg-yellow-100'
-                    }`}>
-                      <Text className={`text-xs font-semibold ${
-                        data.demand === 'High' || data.demand === 'Very High' ? 'text-green-800' : 'text-yellow-800'
+                    <View className="items-end">
+                      <Text className="text-2xl font-bold text-gray-900">₹{data.currentPrice}</Text>
+                      <View className={`flex-row items-center ${
+                        data.trend === 'up' ? 'text-green-600' : data.trend === 'down' ? 'text-red-600' : 'text-gray-600'
                       }`}>
-                        {data.demand}
-                      </Text>
+                        <Ionicons 
+                          name={getTrendIcon(data.trend) as any} 
+                          size={16} 
+                          color={getTrendColor(data.trend)} 
+                        />
+                        <Text className="font-semibold ml-1">
+                          {data.priceChangePercent > 0 ? '+' : ''}{data.priceChangePercent}%
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-gray-600 text-sm">Supply</Text>
-                    <View className={`px-2 py-1 rounded-full ${
-                      data.supply === 'High' ? 'bg-blue-100' : 'bg-orange-100'
-                    }`}>
-                      <Text className={`text-xs font-semibold ${
-                        data.supply === 'High' ? 'text-blue-800' : 'text-orange-800'
-                      }`}>
-                        {data.supply}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
 
-                <View className="border-t border-gray-100 pt-3">
-                  <Text className="text-gray-600 text-sm mb-2">Forecast:</Text>
-                  <Text className="font-semibold text-gray-900 text-sm">{data.forecast}</Text>
+                  <View className="flex-row justify-between mb-3">
+                    <View className="flex-1">
+                      <Text className="text-gray-600 text-sm">Demand</Text>
+                      <View className={`px-2 py-1 rounded-full ${
+                        data.demand === 'High' ? 'bg-green-100' :
+                        data.demand === 'Very High' ? 'bg-green-200' : 
+                        data.demand === 'Medium' ? 'bg-yellow-100' : 'bg-red-100'
+                      }`}>
+                        <Text className={`text-xs font-semibold ${
+                          data.demand === 'High' || data.demand === 'Very High' ? 'text-green-800' : 
+                          data.demand === 'Medium' ? 'text-yellow-800' : 'text-red-800'
+                        }`}>
+                          {data.demand}
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-gray-600 text-sm">Supply</Text>
+                      <View className={`px-2 py-1 rounded-full ${
+                        data.supply === 'High' ? 'bg-blue-100' : 
+                        data.supply === 'Very High' ? 'bg-blue-200' :
+                        data.supply === 'Medium' ? 'bg-orange-100' : 'bg-red-100'
+                      }`}>
+                        <Text className={`text-xs font-semibold ${
+                          data.supply === 'High' || data.supply === 'Very High' ? 'text-blue-800' : 
+                          data.supply === 'Medium' ? 'text-orange-800' : 'text-red-800'
+                        }`}>
+                          {data.supply}
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="flex-1 ml-2">
+                      <Text className="text-gray-600 text-sm">Markets</Text>
+                      <Text className="text-xs font-semibold text-gray-800">{data.marketCount}</Text>
+                    </View>
+                  </View>
+
+                  <View className="border-t border-gray-100 pt-3">
+                    <Text className="text-gray-600 text-sm mb-2">Forecast:</Text>
+                    <Text className="font-semibold text-gray-900 text-sm">{data.forecast}</Text>
+                    <Text className="text-gray-500 text-xs mt-1">Last updated: {data.lastUpdated}</Text>
+                  </View>
                 </View>
+              ))
+            ) : (
+              <View className="card items-center py-8">
+                <Ionicons name="warning" size={32} color="#6b7280" />
+                <Text className="text-gray-600 mt-2 text-center">No market data available</Text>
+                <Text className="text-gray-500 text-sm text-center mt-1">Try refreshing or check your location</Text>
               </View>
-            ))}
+            )}
           </View>
 
           {/* Price Trends */}
           <View className="mb-6">
             <Text className="text-xl font-bold text-gray-900 mb-4">Price Trends (6 Months)</Text>
             <View className="card">
-              <View className="flex-row justify-between items-end h-32 mb-4">
-                {priceHistory.map((item, index) => (
-                  <View key={index} className="flex-1 items-center">
-                    <View 
-                      className="bg-purple-500 rounded-t w-6 mb-2"
-                      style={{ height: (item.price - 2600) / 3 }}
-                    />
-                    <Text className="text-xs text-gray-600">{item.month}</Text>
-                    <Text className="text-xs font-semibold text-gray-900">₹{item.price}</Text>
-                  </View>
-                ))}
-              </View>
+              {marketInsights?.commodities && marketInsights.commodities.length > 0 ? (
+                <View className="flex-row justify-between items-end h-32 mb-4">
+                  {marketInsights.commodities[0].priceHistory.map((item, index) => (
+                    <View key={index} className="flex-1 items-center">
+                      <View 
+                        className="bg-purple-500 rounded-t w-6 mb-2"
+                        style={{ 
+                          height: Math.max(20, (item.price - Math.min(...marketInsights.commodities[0].priceHistory.map(h => h.price))) / 10)
+                        }}
+                      />
+                      <Text className="text-xs text-gray-600">{item.month}</Text>
+                      <Text className="text-xs font-semibold text-gray-900">₹{item.price}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View className="items-center py-8">
+                  <Ionicons name="bar-chart" size={32} color="#6b7280" />
+                  <Text className="text-gray-600 mt-2">No price history available</Text>
+                </View>
+              )}
             </View>
           </View>
 
           {/* Market News */}
           <View className="mb-6">
             <Text className="text-xl font-bold text-gray-900 mb-4">Market News</Text>
-            <View className="space-y-3">
-              {newsItems.map((news, index) => (
-                <View key={index} className="card">
-                  <View className="flex-row items-start justify-between mb-2">
-                    <Text className="font-semibold text-gray-900 flex-1 mr-2">{news.title}</Text>
-                    <View className={`px-2 py-1 rounded-full ${
-                      news.impact === 'Positive' ? 'bg-green-100' : 'bg-red-100'
-                    }`}>
-                      <Text className={`text-xs font-semibold ${
-                        news.impact === 'Positive' ? 'text-green-800' : 'text-red-800'
-                      }`}>
-                        {news.impact}
-                      </Text>
+            {marketInsights?.marketNews && marketInsights.marketNews.length > 0 ? (
+              <View className="space-y-3">
+                {marketInsights.marketNews.map((news, index) => (
+                  <View key={index} className="card">
+                    <View className="flex-row items-start justify-between mb-2">
+                      <Text className="font-semibold text-gray-900 flex-1 mr-2">{news.title}</Text>
+                      <View className={`px-2 py-1 rounded-full ${getImpactBgColor(news.impact)}`}>
+                        <Text className={`text-xs font-semibold ${getImpactTextColor(news.impact)}`}>
+                          {news.impact}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text className="text-gray-600 text-sm mb-2">{news.summary}</Text>
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-gray-500 text-xs">{news.time}</Text>
+                      <Text className="text-gray-400 text-xs">{news.source}</Text>
                     </View>
                   </View>
-                  <Text className="text-gray-600 text-sm mb-2">{news.summary}</Text>
-                  <Text className="text-gray-500 text-xs">{news.time}</Text>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+            ) : (
+              <View className="card items-center py-6">
+                <Ionicons name="newspaper" size={32} color="#6b7280" />
+                <Text className="text-gray-600 mt-2 text-center">No market news available</Text>
+              </View>
+            )}
           </View>
 
-          {/* Key Factors */}
-          <View className="mb-8">
+          {/* Market Factors */}
+          <View className="mb-6">
             <Text className="text-xl font-bold text-gray-900 mb-4">Key Market Factors</Text>
-            <View className="card">
-              <View className="space-y-3">
-                <View className="flex-row items-center">
-                  <Ionicons name="checkmark-circle" size={20} color="#10b981" />
-                  <Text className="text-gray-700 ml-3 flex-1">Export demand increasing for rice and wheat</Text>
+            {marketInsights?.marketFactors && marketInsights.marketFactors.length > 0 ? (
+              <View className="card">
+                <View className="space-y-3">
+                  {marketInsights.marketFactors.map((factor, index) => (
+                    <View key={index} className="flex-row items-start">
+                      <Ionicons 
+                        name={factor.icon as any} 
+                        size={20} 
+                        color={getImpactColor(factor.impact)} 
+                      />
+                      <View className="flex-1 ml-3">
+                        <Text className="font-semibold text-gray-900 text-sm">{factor.factor}</Text>
+                        <Text className="text-gray-600 text-sm mt-1">{factor.description}</Text>
+                        <View className={`inline-block px-2 py-1 rounded-full mt-2 ${getImpactBgColor(factor.impact)}`}>
+                          <Text className={`text-xs font-semibold ${getImpactTextColor(factor.impact)}`}>
+                            {factor.impact} Impact
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
                 </View>
-                <View className="flex-row items-center">
-                  <Ionicons name="warning" size={20} color="#f59e0b" />
-                  <Text className="text-gray-700 ml-3 flex-1">Monsoon uncertainty affecting crop planning</Text>
-                </View>
-                <View className="flex-row items-center">
-                  <Ionicons name="trending-up" size={20} color="#3b82f6" />
-                  <Text className="text-gray-700 ml-3 flex-1">Government MSP support for major crops</Text>
-                </View>
-                <View className="flex-row items-center">
-                  <Ionicons name="leaf" size={20} color="#059669" />
-                  <Text className="text-gray-700 ml-3 flex-1">Organic farming trends increasing demand</Text>
+              </View>
+            ) : (
+              <View className="card items-center py-6">
+                <Ionicons name="analytics" size={32} color="#6b7280" />
+                <Text className="text-gray-600 mt-2 text-center">No market factors available</Text>
+              </View>
+            )}
+          </View>
+
+          {/* General Advice */}
+          {marketInsights?.generalAdvice && (
+            <View className="mb-8">
+              <Text className="text-xl font-bold text-gray-900 mb-4">Market Advice</Text>
+              <View className="card">
+                <View className="flex-row items-start">
+                  <Ionicons name="bulb" size={20} color="#f59e0b" />
+                  <View className="flex-1 ml-3">
+                    <Text className="font-semibold text-gray-900 mb-2">AI Recommendation</Text>
+                    <Text className="text-gray-600 text-sm leading-5">{marketInsights.generalAdvice}</Text>
+                  </View>
                 </View>
               </View>
             </View>
-          </View>
+          )}
         </View>
         
         {/* Bottom padding for tab bar */}

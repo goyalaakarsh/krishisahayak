@@ -1,8 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Link, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Audio } from 'expo-av';
+import { useLocalSearchParams } from 'expo-router';
+import * as Speech from 'expo-speech';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  Animated,
+  Clipboard,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Vibration,
+  View
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { permissionManager } from './utils/permissions';
 
 interface Message {
   id: string;
@@ -11,6 +28,8 @@ interface Message {
   timestamp: Date;
   type?: 'text' | 'suggestion' | 'action' | 'image';
   imageUri?: string;
+  isLiked?: boolean;
+  isCopied?: boolean;
 }
 
 export default function ChatInterface() {
@@ -26,7 +45,29 @@ export default function ChatInterface() {
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const waveAnim = useRef(new Animated.Value(0)).current;
+
+  // Initialize audio permissions
+  useEffect(() => {
+    const checkPermissions = async () => {
+      const micPermission = await permissionManager.checkMicrophonePermission();
+      if (!micPermission.granted && micPermission.canAskAgain) {
+        const newPermission = await permissionManager.requestMicrophonePermission();
+        if (!newPermission.granted) {
+          permissionManager.showPermissionAlert('microphone');
+        }
+      } else if (!micPermission.granted && !micPermission.canAskAgain) {
+        permissionManager.showPermissionAlert('microphone');
+      }
+    };
+    checkPermissions();
+  }, []);
 
   // Handle incoming image from crop scanner
   useEffect(() => {
@@ -59,16 +100,57 @@ export default function ChatInterface() {
     }
   }, [params.imageUri, params.analyzeMessage]);
 
-  const quickQuestions = [
+  // Recording animation effects
+  useEffect(() => {
+    if (isRecording) {
+      // Pulse animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+      // Wave animation
+      Animated.loop(
+        Animated.timing(waveAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        })
+      ).start();
+
+      // Recording duration counter
+      const interval = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+
+      return () => clearInterval(interval);
+    } else {
+      pulseAnim.setValue(1);
+      waveAnim.setValue(0);
+      setRecordingDuration(0);
+    }
+  }, [isRecording]);
+
+  const quickQuestions = useMemo(() => [
     'What crops should I plant this season?',
     'How to treat leaf blight?',
     'Weather forecast for next week',
     'Best time to harvest rice',
     'Soil testing recommendations',
     'Pest control for tomatoes'
-  ];
+  ], []);
 
-  const suggestions = [
+  const suggestions = useMemo(() => [
     {
       title: 'Crop Planning',
       description: 'Get personalized crop recommendations',
@@ -93,9 +175,9 @@ export default function ChatInterface() {
       icon: 'trending-up-outline',
       action: 'market_prices'
     }
-  ];
+  ], []);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = useCallback(() => {
     if (inputText.trim() === '') return;
 
     const userMessage: Message = {
@@ -122,6 +204,115 @@ export default function ChatInterface() {
       setMessages(prev => [...prev, aiResponse]);
       setIsTyping(false);
     }, 1500);
+  }, [inputText]);
+
+  const startRecording = async () => {
+    try {
+      // Check microphone permission first
+      const micPermission = await permissionManager.checkMicrophonePermission();
+      if (!micPermission.granted) {
+        if (micPermission.canAskAgain) {
+          const newPermission = await permissionManager.requestMicrophonePermission();
+          if (!newPermission.granted) {
+            permissionManager.showPermissionAlert('microphone');
+            return;
+          }
+        } else {
+          permissionManager.showPermissionAlert('microphone');
+          return;
+        }
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      
+      recordingRef.current = recording;
+      setIsRecording(true);
+      Vibration.vibrate(50);
+    } catch (err) {
+      console.error('Failed to start recording', err);
+      Alert.alert('Error', 'Failed to start recording. Please try again.');
+    }
+  };
+
+  const stopRecording = async () => {
+    if (!recordingRef.current) return;
+
+    try {
+      await recordingRef.current.stopAndUnloadAsync();
+      const uri = recordingRef.current.getURI();
+      setIsRecording(false);
+      Vibration.vibrate(100);
+
+      if (uri) {
+        // Simulate voice-to-text conversion
+        const transcribedText = await simulateVoiceToText();
+        if (transcribedText) {
+          setInputText(transcribedText);
+          // Auto-send the transcribed message
+          setTimeout(() => {
+            handleSendMessage();
+          }, 500);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to stop recording', err);
+      Alert.alert('Error', 'Failed to process recording. Please try again.');
+    }
+  };
+
+  const simulateVoiceToText = async (): Promise<string> => {
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Return a sample transcribed text based on common farming queries
+    const sampleTexts = [
+      "What's the best time to plant tomatoes?",
+      "How do I treat aphids on my crops?",
+      "What fertilizer should I use for rice?",
+      "Is it going to rain tomorrow?",
+      "How to prevent root rot in plants?",
+      "What's the current price of wheat?"
+    ];
+    
+    return sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
+  };
+
+  const handleMessageAction = (messageId: string, action: 'like' | 'copy' | 'speak') => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId) {
+        switch (action) {
+          case 'like':
+            return { ...msg, isLiked: !msg.isLiked };
+          case 'copy':
+            Clipboard.setString(msg.text);
+            Vibration.vibrate(50);
+            return { ...msg, isCopied: true };
+          case 'speak':
+            if (!msg.isUser) {
+              Speech.speak(msg.text, { language: 'en' });
+            }
+            return msg;
+          default:
+            return msg;
+        }
+      }
+      return msg;
+    }));
+
+    if (action === 'copy') {
+      setTimeout(() => {
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId ? { ...msg, isCopied: false } : msg
+        ));
+      }, 2000);
+    }
   };
 
   const handleImageAnalysis = (imageUri: string) => {
@@ -189,12 +380,12 @@ Would you like more specific treatment recommendations or have questions about a
     }
   };
 
-  const handleQuickQuestion = (question: string) => {
+  const handleQuickQuestion = useCallback((question: string) => {
     setInputText(question);
     handleSendMessage();
-  };
+  }, [handleSendMessage]);
 
-  const handleSuggestion = (action: string) => {
+  const handleSuggestion = useCallback((action: string) => {
     let response = '';
     switch (action) {
       case 'crop_planning':
@@ -220,13 +411,13 @@ Would you like more specific treatment recommendations or have questions about a
     };
 
     setMessages(prev => [...prev, suggestionMessage]);
-  };
+  }, []);
 
-  const formatTime = (date: Date) => {
+  const formatTime = useCallback((date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  }, []);
 
-  const renderMessage = (message: Message) => {
+  const renderMessage = useCallback((message: Message) => {
     if (message.type === 'image') {
       return (
         <View key={message.id} className="mb-4 items-end">
@@ -251,20 +442,66 @@ Would you like more specific treatment recommendations or have questions about a
             ? 'bg-green-600 rounded-2xl rounded-br-md' 
             : 'bg-white rounded-2xl rounded-bl-md shadow-sm'
         } p-4`}>
-          <Text className={`text-sm ${
+          <Text className={`text-sm leading-5 ${
             message.isUser ? 'text-white' : 'text-gray-900'
           }`}>
             {message.text}
           </Text>
-          <Text className={`text-xs mt-1 ${
+          
+          <View className="flex-row items-center justify-between mt-2">
+            <Text className={`text-xs ${
             message.isUser ? 'text-green-100' : 'text-gray-500'
           }`}>
             {formatTime(message.timestamp)}
           </Text>
+            
+            {!message.isUser && (
+              <View className="flex-row items-center space-x-2 ml-2">
+                <Pressable
+                  onPress={() => handleMessageAction(message.id, 'like')}
+                  className="p-1"
+                  accessibilityLabel={message.isLiked ? "Unlike message" : "Like message"}
+                  accessibilityRole="button"
+                >
+                  <Ionicons 
+                    name={message.isLiked ? 'heart' : 'heart-outline'} 
+                    size={16} 
+                    color={message.isLiked ? '#ef4444' : '#9ca3af'} 
+                  />
+                </Pressable>
+                
+                <Pressable
+                  onPress={() => handleMessageAction(message.id, 'copy')}
+                  className="p-1"
+                  accessibilityLabel={message.isCopied ? "Copied to clipboard" : "Copy message"}
+                  accessibilityRole="button"
+                >
+                  <Ionicons 
+                    name={message.isCopied ? 'checkmark' : 'copy-outline'} 
+                    size={16} 
+                    color={message.isCopied ? '#059669' : '#9ca3af'} 
+                  />
+                </Pressable>
+                
+                <Pressable
+                  onPress={() => handleMessageAction(message.id, 'speak')}
+                  className="p-1"
+                  accessibilityLabel="Read message aloud"
+                  accessibilityRole="button"
+                >
+                  <Ionicons 
+                    name="volume-high-outline" 
+                    size={16} 
+                    color="#9ca3af" 
+                  />
+                </Pressable>
+              </View>
+            )}
+          </View>
         </View>
       </View>
     );
-  };
+  }, [formatTime, handleMessageAction]);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -284,10 +521,31 @@ Would you like more specific treatment recommendations or have questions about a
           {isTyping && (
             <View className="mb-4 items-start">
               <View className="bg-white rounded-2xl rounded-bl-md shadow-sm p-4">
+                <View className="flex-row items-center space-x-2">
+                  <View className="w-8 h-8 bg-green-100 rounded-full items-center justify-center">
+                    <Ionicons name="leaf" size={16} color="#059669" />
+                  </View>
                 <View className="flex-row space-x-1">
-                  <View className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
-                  <View className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-                  <View className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                    <Animated.View 
+                      className="w-2 h-2 bg-green-400 rounded-full"
+                      style={{
+                        opacity: pulseAnim,
+                      }}
+                    />
+                    <Animated.View 
+                      className="w-2 h-2 bg-green-400 rounded-full"
+                      style={{
+                        opacity: waveAnim,
+                      }}
+                    />
+                    <Animated.View 
+                      className="w-2 h-2 bg-green-400 rounded-full"
+                      style={{
+                        opacity: pulseAnim,
+                      }}
+                    />
+                  </View>
+                  <Text className="text-gray-500 text-xs ml-2">AI is thinking...</Text>
                 </View>
               </View>
             </View>
@@ -337,7 +595,7 @@ Would you like more specific treatment recommendations or have questions about a
         {/* Input Area */}
         <View className="px-6 py-4 bg-white border-t border-gray-100">
           <View className="flex-row items-end space-x-3">
-            <View className="flex-1 bg-gray-100 rounded-2xl px-4 py-3">
+            <View className="flex-1 bg-gray-50 rounded-2xl px-4 py-3 border border-gray-200">
               <TextInput
                 value={inputText}
                 onChangeText={setInputText}
@@ -346,14 +604,21 @@ Would you like more specific treatment recommendations or have questions about a
                 multiline
                 className="text-gray-900 text-base max-h-20"
                 onSubmitEditing={handleSendMessage}
+                returnKeyType="send"
+                blurOnSubmit={false}
               />
             </View>
             <TouchableOpacity
               onPress={handleSendMessage}
               disabled={inputText.trim() === ''}
-              className={`w-12 h-12 rounded-full items-center justify-center ${
-                inputText.trim() === '' ? 'bg-gray-200' : 'bg-green-600'
+              className={`w-12 h-12 rounded-full items-center justify-center shadow-sm ${
+                inputText.trim() === '' 
+                  ? 'bg-gray-200' 
+                  : 'bg-green-600 shadow-green-200'
               }`}
+              accessibilityLabel="Send message"
+              accessibilityHint="Tap to send your message"
+              accessibilityRole="button"
             >
               <Ionicons 
                 name="send" 
@@ -365,10 +630,56 @@ Would you like more specific treatment recommendations or have questions about a
           
           {/* Voice Input */}
           <View className="flex-row justify-center mt-3">
-            <TouchableOpacity className="flex-row items-center bg-green-50 px-4 py-2 rounded-full">
-              <Ionicons name="mic" size={16} color="#059669" />
-              <Text className="text-green-700 text-sm ml-2">Hold to speak</Text>
-            </TouchableOpacity>
+            <Pressable
+              onPressIn={startRecording}
+              onPressOut={stopRecording}
+              className={`flex-row items-center px-6 py-3 rounded-full ${
+                isRecording 
+                  ? 'bg-red-100 border-2 border-red-300' 
+                  : 'bg-green-50 border border-green-200'
+              }`}
+              accessibilityLabel={isRecording ? "Stop recording" : "Start voice recording"}
+              accessibilityHint={isRecording ? "Release to stop recording" : "Press and hold to record voice message"}
+              accessibilityRole="button"
+            >
+              <Animated.View
+                style={{
+                  transform: [{ scale: isRecording ? pulseAnim : 1 }],
+                }}
+              >
+                <Ionicons 
+                  name={isRecording ? "stop" : "mic"} 
+                  size={20} 
+                  color={isRecording ? "#dc2626" : "#059669"} 
+                />
+              </Animated.View>
+              
+              <Text className={`text-sm ml-3 font-medium ${
+                isRecording ? 'text-red-700' : 'text-green-700'
+              }`}>
+                {isRecording 
+                  ? `Recording... ${recordingDuration}s` 
+                  : 'Hold to speak'
+                }
+              </Text>
+              
+              {isRecording && (
+                <Animated.View
+                  className="ml-2"
+                  style={{
+                    opacity: waveAnim,
+                  }}
+                >
+                  <View className="flex-row space-x-1">
+                    <View className="w-1 h-4 bg-red-400 rounded-full" />
+                    <View className="w-1 h-3 bg-red-400 rounded-full" />
+                    <View className="w-1 h-5 bg-red-400 rounded-full" />
+                    <View className="w-1 h-2 bg-red-400 rounded-full" />
+                    <View className="w-1 h-4 bg-red-400 rounded-full" />
+                  </View>
+                </Animated.View>
+              )}
+            </Pressable>
           </View>
         </View>
       </KeyboardAvoidingView>

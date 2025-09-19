@@ -55,7 +55,7 @@ export default function TabLayout() {
               color={color} 
             />
           ),
-          headerTitle: 'Farmula Dashboard',
+          headerTitle: 'Farmula',
         }}
       />
       <Tabs.Screen

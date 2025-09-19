@@ -7,6 +7,14 @@ export default function RootLayout() {
     <>
       <StatusBar style="dark" backgroundColor="#ffffff" />
       <Stack>
+        <Stack.Screen 
+          name="splash-screen" 
+          options={{ 
+            headerShown: false,
+            presentation: 'modal',
+            animation: 'fade'
+          }} 
+        />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen 
           name="chat-interface" 
