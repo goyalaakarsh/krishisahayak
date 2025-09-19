@@ -58,32 +58,32 @@ export default function TabLayout() {
           headerTitle: 'Farmula',
         }}
       />
+        <Tabs.Screen
+          name="crop-recommendations"
+          options={{
+            title: 'Crops',
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons 
+                name={focused ? 'bulb' : 'bulb-outline'} 
+                size={size} 
+                color={color} 
+              />
+            ),
+            headerTitle: 'Crop Recommendations',
+          }}
+        />
       <Tabs.Screen
-        name="crop-scanner"
+        name="chat-interface"
         options={{
-          title: 'Scanner',
+          title: 'Chat',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons 
-              name={focused ? 'camera' : 'camera-outline'} 
+              name={focused ? 'chatbubbles' : 'chatbubbles-outline'} 
               size={size} 
               color={color} 
             />
           ),
-          headerTitle: 'Crop Scanner',
-        }}
-      />
-      <Tabs.Screen
-        name="crop-recommendations"
-        options={{
-          title: 'Crops',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons 
-              name={focused ? 'bulb' : 'bulb-outline'} 
-              size={size} 
-              color={color} 
-            />
-          ),
-          headerTitle: 'Crop Recommendations',
+          headerTitle: 'AI Chatbot',
         }}
       />
       <Tabs.Screen

@@ -52,24 +52,7 @@ export default function RootLayout() {
             headerTintColor: '#059669',
           }} 
         />
-        <Stack.Screen 
-          name="chat-interface" 
-          options={{ 
-            headerShown: true, 
-            title: 'AI Assistant',
-            headerStyle: {
-              backgroundColor: '#ffffff',
-              borderBottomWidth: 1,
-              borderBottomColor: '#e5e7eb',
-            },
-            headerTitleStyle: {
-              fontSize: 18,
-              fontWeight: 'bold',
-              color: '#111827',
-            },
-            headerTintColor: '#059669',
-          }} 
-        />
+
         <Stack.Screen 
           name="weather-forecast" 
           options={{ 

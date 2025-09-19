@@ -104,11 +104,11 @@ export default function Dashboard() {
 
   const quickActions = [
     {
-      title: 'Crop Scanner',
-      subtitle: 'Detect pests & diseases',
-      icon: 'camera-outline',
-      color: 'bg-blue-500',
-      href: '/(tabs)/crop-scanner'
+      title: 'Pest Detection',
+      subtitle: 'Scan for pests in crops',
+      icon: 'bug-outline',
+      color: 'bg-red-500',
+      href: '/pest-detection'
     },
     {
       title: 'AI Recommendations',

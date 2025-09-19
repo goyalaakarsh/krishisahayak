@@ -19,7 +19,7 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { permissionManager } from './utils/permissions';
+import { permissionManager } from '../utils/permissions';
 
 interface Message {
   id: string;

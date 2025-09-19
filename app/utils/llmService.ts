@@ -540,24 +540,65 @@ Focus on providing actionable, safe, and effective pest management solutions.`;
 
   private parsePestDetectionResponse(response: string): PestDetectionResult {
     try {
-      // Extract JSON from the response (in case there's extra text)
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in pest detection response');
+      console.log('Raw LLM response:', response);
+      
+      // Clean the response - remove markdown formatting and extra text
+      let cleanedResponse = response
+        .replace(/```json\s*/g, '')
+        .replace(/```\s*/g, '')
+        .replace(/^[^{]*/, '') // Remove text before first {
+        .replace(/[^}]*$/, '') // Remove text after last }
+        .trim();
+
+      // Try to find JSON object boundaries more precisely
+      const jsonStart = cleanedResponse.indexOf('{');
+      const jsonEnd = cleanedResponse.lastIndexOf('}');
+      
+      if (jsonStart === -1 || jsonEnd === -1 || jsonStart >= jsonEnd) {
+        throw new Error('No valid JSON object found in pest detection response');
       }
 
-      const parsed = JSON.parse(jsonMatch[0]);
+      cleanedResponse = cleanedResponse.substring(jsonStart, jsonEnd + 1);
       
-      return {
+      // Fix common JSON issues
+      cleanedResponse = cleanedResponse
+        .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
+        .replace(/([{\[,])\s*(\w+):/g, '$1"$2":') // Quote unquoted keys
+        .replace(/:(\s*)([^",{\[\s][^",}\]\s]*?)(\s*[,}\]])/g, ': "$2"$3') // Quote unquoted string values
+        .replace(/"\s*:\s*"/g, '": "') // Fix spacing around colons
+        .replace(/"\s*,\s*"/g, '", "') // Fix spacing around commas
+        .replace(/\n\s*/g, ' ') // Remove newlines and extra spaces
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+
+      console.log('Cleaned JSON:', cleanedResponse);
+
+      const parsed = JSON.parse(cleanedResponse);
+      
+      // Validate and clean the parsed data
+      const result: PestDetectionResult = {
         pest: parsed.pest || 'Unknown Pest',
-        confidence: parsed.confidence || 85,
-        severity: parsed.severity || 'Medium',
+        confidence: Math.max(0, Math.min(100, parsed.confidence || 85)),
+        severity: ['Low', 'Medium', 'High'].includes(parsed.severity) ? parsed.severity : 'Medium',
         description: parsed.description || 'Pest information not available',
-        damage: parsed.damage || ['Damage information not available'],
-        pesticides: parsed.pesticides || []
+        damage: Array.isArray(parsed.damage) ? parsed.damage : ['Damage information not available'],
+        pesticides: Array.isArray(parsed.pesticides) ? parsed.pesticides.map((p: any) => ({
+          name: p.name || 'Unknown Pesticide',
+          activeIngredient: p.activeIngredient || 'Not specified',
+          dosage: p.dosage || 'Follow label instructions',
+          applicationMethod: p.applicationMethod || 'As directed',
+          frequency: p.frequency || 'As needed',
+          safetyPrecautions: Array.isArray(p.safetyPrecautions) ? p.safetyPrecautions : ['Follow safety guidelines'],
+          effectiveness: Math.max(0, Math.min(100, p.effectiveness || 80)),
+          price: p.price || 'Contact supplier'
+        })) : []
       };
+      
+      console.log('Parsed pest detection result:', result);
+      return result;
     } catch (error) {
       console.error('Error parsing pest detection LLM response:', error);
+      console.log('Response that failed to parse:', response);
       throw error;
     }
   }
