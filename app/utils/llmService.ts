@@ -48,6 +48,42 @@ export interface PestDetectionResult {
   pesticides: Pesticide[];
 }
 
+export interface CropRecommendation {
+  id: number;
+  name: string;
+  variety: string;
+  suitability: number;
+  yield: string;
+  profit: string;
+  duration: string;
+  water: string;
+  sustainability: number;
+  image: string;
+  benefits: string[];
+  requirements: string[];
+  marketDemand: 'High' | 'Medium' | 'Low';
+  riskLevel: 'Low' | 'Medium' | 'High';
+  bestPlantingTime: string;
+  expectedROI: string;
+}
+
+export interface CropRecommendationRequest {
+  season: string;
+  soilType: string;
+  location: {
+    name: string;
+    coordinates?: { latitude: number; longitude: number };
+    state?: string;
+    district?: string;
+  };
+  preferences?: {
+    waterAvailability: 'High' | 'Medium' | 'Low';
+    budget: 'Low' | 'Medium' | 'High';
+    experience: 'Beginner' | 'Intermediate' | 'Expert';
+    farmSize: 'Small' | 'Medium' | 'Large';
+  };
+}
+
 class LLMService {
   private static instance: LLMService;
   private readonly EXPO_PUBLIC_GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey || process.env.EXPO_PUBLIC_GEMINI_API_KEY || 'AIzaSyBrEHwOV0v6KMM7oqqOkhLYmugVSKhk9E4';
@@ -738,6 +774,359 @@ Focus on providing actionable, safe, and effective pest management solutions.`;
       'Hand Picking + Neem': '₹150-250 per 100ml neem'
     };
     return prices[pesticide] || '₹200-400 per unit';
+  }
+
+  async generateCropRecommendations(request: CropRecommendationRequest): Promise<CropRecommendation[]> {
+    try {
+      console.log('Generating crop recommendations with LLM...');
+      console.log('Request:', request);
+      
+      // Check if API key is configured
+      if (this.EXPO_PUBLIC_GEMINI_API_KEY === 'your_gemini_api_key_here' || !this.EXPO_PUBLIC_GEMINI_API_KEY) {
+        console.log('Gemini API key not configured, using fallback crop recommendations');
+        return this.getFallbackCropRecommendations(request);
+      }
+      
+      const prompt = this.createCropRecommendationPrompt(request);
+      console.log('Crop recommendation prompt created, calling Gemini API...');
+      const response = await this.callGeminiAPI(prompt);
+      console.log('Gemini API response received for crop recommendations');
+      
+      return this.parseCropRecommendationResponse(response);
+    } catch (error) {
+      console.error('Error generating crop recommendations:', error);
+      console.log('Falling back to rule-based crop recommendations');
+      return this.getFallbackCropRecommendations(request);
+    }
+  }
+
+  private createCropRecommendationPrompt(request: CropRecommendationRequest): string {
+    const locationInfo = request.location.coordinates 
+      ? `Location: ${request.location.name} (${request.location.coordinates.latitude}, ${request.location.coordinates.longitude})`
+      : `Location: ${request.location.name}`;
+    
+    const stateDistrict = request.location.state && request.location.district 
+      ? `State: ${request.location.state}, District: ${request.location.district}`
+      : '';
+
+    return `You are an expert agricultural consultant specializing in crop recommendations for Indian farmers. Generate the top 3 most suitable crop recommendations based on the following parameters:
+
+FARMING PARAMETERS:
+- Season: ${request.season}
+- Soil Type: ${request.soilType}
+- ${locationInfo}
+${stateDistrict ? `- ${stateDistrict}` : ''}
+${request.preferences ? `
+FARMER PREFERENCES:
+- Water Availability: ${request.preferences.waterAvailability}
+- Budget: ${request.preferences.budget}
+- Experience Level: ${request.preferences.experience}
+- Farm Size: ${request.preferences.farmSize}
+` : ''}
+
+Please provide exactly 3 crop recommendations that are:
+1. Highly suitable for the specified season and soil type
+2. Appropriate for the location and climate
+3. Considerate of farmer preferences (if provided)
+4. Realistic in terms of yield, profit, and requirements
+5. Include popular Indian crop varieties
+
+Format your response as JSON:
+{
+  "recommendations": [
+    {
+      "id": 1,
+      "name": "Crop Name",
+      "variety": "Specific variety name",
+      "suitability": 85-95,
+      "yield": "X-Y tons/hectare",
+      "profit": "₹X-Y per hectare",
+      "duration": "X-Y days/months",
+      "water": "High|Medium|Low",
+      "sustainability": 6.0-9.0,
+      "image": "🌾|🌽|🥔|🍅|🌶️|🥬|🌿|🌱",
+      "benefits": ["Benefit 1", "Benefit 2", "Benefit 3"],
+      "requirements": ["Requirement 1", "Requirement 2", "Requirement 3"],
+      "marketDemand": "High|Medium|Low",
+      "riskLevel": "Low|Medium|High",
+      "bestPlantingTime": "Specific time period",
+      "expectedROI": "X-Y%"
+    },
+    {
+      "id": 2,
+      "name": "Crop Name",
+      "variety": "Specific variety name",
+      "suitability": 85-95,
+      "yield": "X-Y tons/hectare",
+      "profit": "₹X-Y per hectare",
+      "duration": "X-Y days/months",
+      "water": "High|Medium|Low",
+      "sustainability": 6.0-9.0,
+      "image": "🌾|🌽|🥔|🍅|🌶️|🥬|🌿|🌱",
+      "benefits": ["Benefit 1", "Benefit 2", "Benefit 3"],
+      "requirements": ["Requirement 1", "Requirement 2", "Requirement 3"],
+      "marketDemand": "High|Medium|Low",
+      "riskLevel": "Low|Medium|High",
+      "bestPlantingTime": "Specific time period",
+      "expectedROI": "X-Y%"
+    },
+    {
+      "id": 3,
+      "name": "Crop Name",
+      "variety": "Specific variety name",
+      "suitability": 85-95,
+      "yield": "X-Y tons/hectare",
+      "profit": "₹X-Y per hectare",
+      "duration": "X-Y days/months",
+      "water": "High|Medium|Low",
+      "sustainability": 6.0-9.0,
+      "image": "🌾|🌽|🥔|🍅|🌶️|🥬|🌿|🌱",
+      "benefits": ["Benefit 1", "Benefit 2", "Benefit 3"],
+      "requirements": ["Requirement 1", "Requirement 2", "Requirement 3"],
+      "marketDemand": "High|Medium|Low",
+      "riskLevel": "Low|Medium|High",
+      "bestPlantingTime": "Specific time period",
+      "expectedROI": "X-Y%"
+    }
+  ]
+}
+
+IMPORTANT GUIDELINES:
+- Focus on crops commonly grown in India
+- Consider seasonal timing and climate suitability
+- Provide realistic yield and profit estimates
+- Include popular Indian crop varieties
+- Make recommendations practical and actionable
+- Consider water requirements based on location
+- Factor in market demand and risk levels
+- Use appropriate emojis for crop types
+- Ensure all data is scientifically accurate and region-appropriate
+
+Prioritize crops that are most suitable for the given conditions and farmer preferences.`;
+  }
+
+  private parseCropRecommendationResponse(response: string): CropRecommendation[] {
+    try {
+      // Extract JSON from the response (in case there's extra text)
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON found in crop recommendation response');
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      
+      if (parsed.recommendations && Array.isArray(parsed.recommendations)) {
+        return parsed.recommendations.map((crop: any, index: number) => ({
+          id: crop.id || index + 1,
+          name: crop.name || 'Unknown Crop',
+          variety: crop.variety || 'Standard Variety',
+          suitability: crop.suitability || 85,
+          yield: crop.yield || 'Data not available',
+          profit: crop.profit || '₹0-0',
+          duration: crop.duration || 'Unknown',
+          water: crop.water || 'Medium',
+          sustainability: crop.sustainability || 7.0,
+          image: crop.image || '🌾',
+          benefits: crop.benefits || ['Good yield potential'],
+          requirements: crop.requirements || ['Standard farming practices'],
+          marketDemand: crop.marketDemand || 'Medium',
+          riskLevel: crop.riskLevel || 'Medium',
+          bestPlantingTime: crop.bestPlantingTime || 'Season dependent',
+          expectedROI: crop.expectedROI || '15-25%'
+        }));
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Error parsing crop recommendation LLM response:', error);
+      throw error;
+    }
+  }
+
+  private getFallbackCropRecommendations(request: CropRecommendationRequest): CropRecommendation[] {
+    // Generate fallback recommendations based on season and soil type
+    const seasonCrops: { [key: string]: Partial<CropRecommendation>[] } = {
+      'kharif': [
+        {
+          name: 'Rice',
+          variety: 'Basmati 370',
+          suitability: 95,
+          yield: '4.5-5.5 tons/hectare',
+          profit: '₹45,000-55,000',
+          duration: '120-140 days',
+          water: 'High',
+          sustainability: 8.5,
+          image: '🌾',
+          benefits: ['High market demand', 'Good for export', 'Drought resistant variety'],
+          requirements: ['Well-drained soil', 'Consistent irrigation', 'Fertile soil'],
+          marketDemand: 'High',
+          riskLevel: 'Low',
+          bestPlantingTime: 'June-July',
+          expectedROI: '20-25%'
+        },
+        {
+          name: 'Maize',
+          variety: 'Hybrid 900M Gold',
+          suitability: 88,
+          yield: '6-8 tons/hectare',
+          profit: '₹35,000-45,000',
+          duration: '90-110 days',
+          water: 'Medium',
+          sustainability: 7.5,
+          image: '🌽',
+          benefits: ['High yield potential', 'Good for animal feed', 'Short duration'],
+          requirements: ['Well-drained soil', 'Adequate sunlight', 'Regular irrigation'],
+          marketDemand: 'High',
+          riskLevel: 'Medium',
+          bestPlantingTime: 'June-July',
+          expectedROI: '18-22%'
+        },
+        {
+          name: 'Cotton',
+          variety: 'Bt Cotton',
+          suitability: 85,
+          yield: '15-20 quintals/hectare',
+          profit: '₹60,000-80,000',
+          duration: '150-180 days',
+          water: 'Medium',
+          sustainability: 6.5,
+          image: '🌿',
+          benefits: ['High value crop', 'Export potential', 'Multiple uses'],
+          requirements: ['Deep soil', 'Warm climate', 'Pest management'],
+          marketDemand: 'High',
+          riskLevel: 'High',
+          bestPlantingTime: 'May-June',
+          expectedROI: '25-30%'
+        }
+      ],
+      'rabi': [
+        {
+          name: 'Wheat',
+          variety: 'HD-2967',
+          suitability: 92,
+          yield: '3.5-4.2 tons/hectare',
+          profit: '₹35,000-42,000',
+          duration: '110-125 days',
+          water: 'Medium',
+          sustainability: 7.8,
+          image: '🌾',
+          benefits: ['High protein content', 'Good for domestic market', 'Easy to grow'],
+          requirements: ['Well-drained soil', 'Cool climate', 'Adequate sunlight'],
+          marketDemand: 'High',
+          riskLevel: 'Low',
+          bestPlantingTime: 'November-December',
+          expectedROI: '15-20%'
+        },
+        {
+          name: 'Mustard',
+          variety: 'Pusa Bold',
+          suitability: 88,
+          yield: '2-3 tons/hectare',
+          profit: '₹25,000-35,000',
+          duration: '100-120 days',
+          water: 'Low',
+          sustainability: 8.0,
+          image: '🌿',
+          benefits: ['Oil production', 'Low water requirement', 'Good for rotation'],
+          requirements: ['Well-drained soil', 'Cool climate', 'Minimal irrigation'],
+          marketDemand: 'Medium',
+          riskLevel: 'Low',
+          bestPlantingTime: 'October-November',
+          expectedROI: '12-18%'
+        },
+        {
+          name: 'Chickpea',
+          variety: 'Pusa 256',
+          suitability: 85,
+          yield: '1.5-2 tons/hectare',
+          profit: '₹30,000-40,000',
+          duration: '120-140 days',
+          water: 'Low',
+          sustainability: 8.5,
+          image: '🌱',
+          benefits: ['High protein', 'Nitrogen fixation', 'Drought tolerant'],
+          requirements: ['Well-drained soil', 'Cool climate', 'Minimal irrigation'],
+          marketDemand: 'High',
+          riskLevel: 'Low',
+          bestPlantingTime: 'October-November',
+          expectedROI: '18-25%'
+        }
+      ],
+      'zaid': [
+        {
+          name: 'Cucumber',
+          variety: 'Pusa Sanyog',
+          suitability: 90,
+          yield: '15-20 tons/hectare',
+          profit: '₹40,000-60,000',
+          duration: '60-80 days',
+          water: 'High',
+          sustainability: 7.0,
+          image: '🥒',
+          benefits: ['High yield', 'Quick returns', 'Good market demand'],
+          requirements: ['Fertile soil', 'Regular irrigation', 'Trellis support'],
+          marketDemand: 'High',
+          riskLevel: 'Medium',
+          bestPlantingTime: 'March-April',
+          expectedROI: '20-30%'
+        },
+        {
+          name: 'Bottle Gourd',
+          variety: 'Pusa Naveen',
+          suitability: 88,
+          yield: '20-25 tons/hectare',
+          profit: '₹35,000-50,000',
+          duration: '70-90 days',
+          water: 'High',
+          sustainability: 7.5,
+          image: '🥒',
+          benefits: ['High yield', 'Easy to grow', 'Good for health'],
+          requirements: ['Fertile soil', 'Regular irrigation', 'Support structure'],
+          marketDemand: 'Medium',
+          riskLevel: 'Low',
+          bestPlantingTime: 'March-April',
+          expectedROI: '18-25%'
+        },
+        {
+          name: 'Okra',
+          variety: 'Pusa Sawani',
+          suitability: 85,
+          yield: '8-12 tons/hectare',
+          profit: '₹30,000-45,000',
+          duration: '80-100 days',
+          water: 'Medium',
+          sustainability: 7.2,
+          image: '🌶️',
+          benefits: ['Continuous harvest', 'High nutrition', 'Good market price'],
+          requirements: ['Well-drained soil', 'Regular irrigation', 'Pest management'],
+          marketDemand: 'High',
+          riskLevel: 'Medium',
+          bestPlantingTime: 'March-April',
+          expectedROI: '22-28%'
+        }
+      ]
+    };
+
+    const crops = seasonCrops[request.season] || seasonCrops['kharif'];
+    
+    return crops.map((crop, index) => ({
+      id: index + 1,
+      name: crop.name || 'Unknown Crop',
+      variety: crop.variety || 'Standard Variety',
+      suitability: crop.suitability || 85,
+      yield: crop.yield || 'Data not available',
+      profit: crop.profit || '₹0-0',
+      duration: crop.duration || 'Unknown',
+      water: crop.water || 'Medium',
+      sustainability: crop.sustainability || 7.0,
+      image: crop.image || '🌾',
+      benefits: crop.benefits || ['Good yield potential'],
+      requirements: crop.requirements || ['Standard farming practices'],
+      marketDemand: crop.marketDemand || 'Medium',
+      riskLevel: crop.riskLevel || 'Medium',
+      bestPlantingTime: crop.bestPlantingTime || 'Season dependent',
+      expectedROI: crop.expectedROI || '15-25%'
+    }));
   }
 
   getFallbackInsights(weatherData: ProcessedWeatherData[]): WeatherInsights {

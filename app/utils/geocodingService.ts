@@ -97,6 +97,83 @@ class GeocodingService {
       district: locationData.locality
     };
   }
+
+  // Convert location name to coordinates using OpenStreetMap Nominatim API
+  async getCoordinatesFromLocation(locationName: string): Promise<{ latitude: number; longitude: number } | null> {
+    try {
+      console.log('Getting coordinates for location:', locationName);
+      
+      const encodedLocation = encodeURIComponent(locationName);
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodedLocation}&format=geojson&limit=1`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Farmula/1.0', // Required by Nominatim
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Geocoding API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Geocoding response:', data);
+
+      if (data.features && data.features.length > 0) {
+        const coordinates = data.features[0].geometry.coordinates;
+        return {
+          longitude: coordinates[0],
+          latitude: coordinates[1]
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error getting coordinates from location:', error);
+      return null;
+    }
+  }
+
+  // Get location data from coordinates using OpenStreetMap Nominatim API
+  async getLocationFromCoordinatesNominatim(latitude: number, longitude: number): Promise<LocationData | null> {
+    try {
+      console.log('Getting location from coordinates using Nominatim:', { latitude, longitude });
+      
+      const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Farmula/1.0',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Nominatim API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Nominatim response:', data);
+
+      if (data.address) {
+        return {
+          countryName: data.address.country || 'Unknown',
+          principalSubdivision: data.address.state || data.address.region || 'Unknown State',
+          locality: data.address.city || data.address.town || data.address.village || 'Unknown District',
+          city: data.address.city || data.address.town || data.address.village || 'Unknown City',
+          postcode: data.address.postcode || 'Unknown',
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error getting location from coordinates using Nominatim:', error);
+      return null;
+    }
+  }
 }
 
 export const geocodingService = GeocodingService.getInstance();
