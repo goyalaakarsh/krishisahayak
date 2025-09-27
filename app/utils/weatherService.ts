@@ -95,10 +95,20 @@ export interface CurrentWeatherData {
   uv: number;
 }
 
+interface CachedWeatherData {
+  data: CurrentWeatherData | ProcessedWeatherData[];
+  timestamp: number;
+  location: { latitude: number; longitude: number };
+}
+
 class WeatherService {
   private static instance: WeatherService;
   private readonly API_KEY = 'b975570183msh2977cb85a845889p1efb91jsn7c7b26ac40b0';
   private readonly BASE_URL = 'https://open-weather13.p.rapidapi.com';
+  private readonly CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
+  
+  private currentWeatherCache: CachedWeatherData | null = null;
+  private forecastCache: CachedWeatherData | null = null;
 
   static getInstance(): WeatherService {
     if (!WeatherService.instance) {
@@ -128,6 +138,17 @@ class WeatherService {
     }
   }
 
+  private isCacheValid(cache: CachedWeatherData | null, location: { latitude: number; longitude: number }): boolean {
+    if (!cache) return false;
+    
+    const now = Date.now();
+    const isExpired = (now - cache.timestamp) > this.CACHE_DURATION;
+    const isLocationChanged = Math.abs(cache.location.latitude - location.latitude) > 0.01 || 
+                             Math.abs(cache.location.longitude - location.longitude) > 0.01;
+    
+    return !isExpired && !isLocationChanged;
+  }
+
   async getCurrentWeather(): Promise<CurrentWeatherData | null> {
     try {
       console.log('Starting current weather fetch...');
@@ -136,6 +157,12 @@ class WeatherService {
       if (!location) {
         console.log('No location available, using mock data');
         return this.getMockCurrentWeatherData();
+      }
+
+      // Check cache first
+      if (this.isCacheValid(this.currentWeatherCache, location)) {
+        console.log('Using cached current weather data');
+        return this.currentWeatherCache!.data as CurrentWeatherData;
       }
 
       console.log('Location found:', location);
@@ -169,10 +196,23 @@ class WeatherService {
       const data = await response.json();
       console.log('Current weather data received:', data);
       
-      return this.processCurrentWeatherData(data);
+      const processedData = this.processCurrentWeatherData(data);
+      
+      // Cache the result
+      this.currentWeatherCache = {
+        data: processedData,
+        timestamp: Date.now(),
+        location: { latitude, longitude }
+      };
+      
+      return processedData;
     } catch (error) {
       console.error('Error fetching current weather data:', error);
-      // Return mock data as fallback
+      // Return cached data if available, otherwise mock data
+      if (this.currentWeatherCache) {
+        console.log('Using cached data due to error');
+        return this.currentWeatherCache.data as CurrentWeatherData;
+      }
       return this.getMockCurrentWeatherData();
     }
   }
@@ -185,6 +225,12 @@ class WeatherService {
       if (!location) {
         console.log('No location available, using mock data');
         return this.getMockWeatherData();
+      }
+
+      // Check cache first
+      if (this.isCacheValid(this.forecastCache, location)) {
+        console.log('Using cached forecast data');
+        return this.forecastCache!.data as ProcessedWeatherData[];
       }
 
       console.log('Location found:', location);
@@ -223,10 +269,23 @@ class WeatherService {
         return this.getMockWeatherData();
       }
 
-      return this.processWeatherData(data.list, data.city);
+      const processedData = this.processWeatherData(data.list, data.city);
+      
+      // Cache the result
+      this.forecastCache = {
+        data: processedData,
+        timestamp: Date.now(),
+        location: { latitude, longitude }
+      };
+      
+      return processedData;
     } catch (error) {
       console.error('Error fetching weather data:', error);
-      // Return mock data as fallback
+      // Return cached data if available, otherwise mock data
+      if (this.forecastCache) {
+        console.log('Using cached forecast data due to error');
+        return this.forecastCache.data as ProcessedWeatherData[];
+      }
       return this.getMockWeatherData();
     }
   }
@@ -566,6 +625,23 @@ class WeatherService {
       windDirection: 180,
       gust: 15,
       uv: 6
+    };
+  }
+
+  // Method to clear cache (useful for testing or manual refresh)
+  clearCache(): void {
+    this.currentWeatherCache = null;
+    this.forecastCache = null;
+    console.log('Weather cache cleared');
+  }
+
+  // Method to get cache status for debugging
+  getCacheStatus(): { current: boolean; forecast: boolean; lastUpdate?: number } {
+    const now = Date.now();
+    return {
+      current: this.currentWeatherCache ? (now - this.currentWeatherCache.timestamp) < this.CACHE_DURATION : false,
+      forecast: this.forecastCache ? (now - this.forecastCache.timestamp) < this.CACHE_DURATION : false,
+      lastUpdate: this.currentWeatherCache?.timestamp
     };
   }
 }

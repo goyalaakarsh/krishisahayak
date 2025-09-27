@@ -112,7 +112,7 @@ export default function Dashboard() {
       href: '/pest-detection'
     },
     {
-      title: 'AI Recommendations',
+      title: 'Crop Recommendations',
       subtitle: 'Get crop suggestions',
       icon: 'bulb-outline',
       color: 'bg-green-500',
@@ -120,7 +120,7 @@ export default function Dashboard() {
     },
     {
       title: 'Weather Forecast',
-      subtitle: '7-day weather outlook',
+      subtitle: '5-day weather outlook',
       icon: 'partly-sunny-outline',
       color: 'bg-yellow-500',
       href: '/weather-forecast'
@@ -271,7 +271,7 @@ export default function Dashboard() {
         </View>
 
         {/* Soil Stats */}
-        <View className="px-6 mb-6">
+        {/* <View className="px-6 mb-6">
           <Text variant="bold" className="text-xl text-gray-900 mb-4">Soil Conditions</Text>
           <View className="flex-row flex-wrap justify-between">
             {stats.map((stat, index) => (
@@ -291,7 +291,7 @@ export default function Dashboard() {
               </View>
             ))}
           </View>
-        </View>
+        </View> */}
       </ScrollView>
     </SafeAreaView>
   );

@@ -90,7 +90,7 @@ export interface MarketFactor {
 
 class MarketService {
   private static instance: MarketService;
-  private readonly API_KEY = '579b464db66ec23bdd0000015e1688471c84495a58a557976cd94c20';
+  private readonly API_KEY = '579b464db66ec23bdd00000175ba189d3b1e4479741c4953b1e7ef04';
   private readonly RESOURCE_ID = '9ef84268-d588-465a-a308-a864a43d0070';
   private readonly BASE_URL = 'https://api.data.gov.in/resource';
 

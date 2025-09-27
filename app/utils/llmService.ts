@@ -86,7 +86,7 @@ export interface CropRecommendationRequest {
 
 class LLMService {
   private static instance: LLMService;
-  private readonly EXPO_PUBLIC_GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey || process.env.EXPO_PUBLIC_GEMINI_API_KEY || 'AIzaSyBrEHwOV0v6KMM7oqqOkhLYmugVSKhk9E4';
+  private readonly EXPO_PUBLIC_GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey || process.env.EXPO_PUBLIC_GEMINI_API_KEY || 'AIzaSyApkIuwGtsB86lNcvyO4nmOe67nnB-TgSw';
   private readonly GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
   static getInstance(): LLMService {

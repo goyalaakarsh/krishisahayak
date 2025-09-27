@@ -47,7 +47,7 @@ class ChatApiService {
         image_uri: imageUri
       };
 
-      const response = await fetch(`${this.API_BASE_URL}/agent/chat`, {
+      const response = await fetch(`${this.API_BASE_URL}/agent/agent/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

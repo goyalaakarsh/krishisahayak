@@ -1,19 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Platform, ScrollView, TouchableOpacity, View } from 'react-native';
+import LocationMap from '../components/LocationMap';
 import Text from '../components/Text';
+import { LocationData, locationService } from '../utils/locationService';
 
 export default function Profile() {
-  const [user] = useState({
-    name: 'Rajesh Kumar',
-    email: 'rajesh.kumar@email.com',
-    phone: '+91 98765 43210',
-    location: 'Pune, Maharashtra',
+  const [user, setUser] = useState({
+    name: 'Aakarsh Goyal',
+    email: 'aakarshgoyal23@gmail.com',
+    phone: '+91 9999999999',
+    location: 'Kapriwas, Gurgaon',
     farmSize: '5.2 hectares',
     experience: '8 years',
     crops: ['Rice', 'Wheat', 'Sugarcane'],
-    joinDate: 'January 2023'
+    joinDate: 'September 2025'
   });
+
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
 
   const [notifications, setNotifications] = useState({
     weather: true,
@@ -29,7 +34,74 @@ export default function Profile() {
     }));
   };
 
+  useEffect(() => {
+    loadUserLocation();
+  }, []);
+
+  const loadUserLocation = async () => {
+    setLocationLoading(true);
+    try {
+      const location = await locationService.refreshLocationWithGeocoding();
+      if (location) {
+        setCurrentLocation(location);
+        // Update user location if we have address info
+        if (location.city && location.state) {
+          setUser(prev => ({
+            ...prev,
+            location: `${location.city}, ${location.state}`
+          }));
+        } else if (location.address) {
+          setUser(prev => ({
+            ...prev,
+            location: location.address!
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading location:', error);
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const handleLocationSelect = (location: LocationData) => {
+    setCurrentLocation(location);
+    if (location.city && location.state) {
+      setUser(prev => ({
+        ...prev,
+        location: `${location.city}, ${location.state}`
+      }));
+    } else if (location.address) {
+      setUser(prev => ({
+        ...prev,
+        location: location.address!
+      }));
+    }
+  };
+
   const menuItems = [
+    {
+      title: 'Location Settings',
+      subtitle: 'Manage location permissions and accuracy',
+      icon: 'location-outline',
+      color: 'bg-indigo-500',
+      onPress: () => {
+        Alert.alert(
+          'Location Settings',
+          currentLocation 
+            ? `Address: ${currentLocation.address || 'N/A'}\n\nCoordinates: ${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}\n\nCity: ${currentLocation.city || 'N/A'}\nState: ${currentLocation.state || 'N/A'}\nCountry: ${currentLocation.country || 'N/A'}\n\nAccuracy: ±${Math.round(currentLocation.accuracy || 0)}m\nLast Updated: ${new Date(currentLocation.timestamp).toLocaleString()}`
+            : 'No location data available',
+          [
+            { text: 'OK' },
+            { text: 'Refresh Location', onPress: loadUserLocation },
+            { text: 'Clear Cache', onPress: () => {
+              locationService.clearLocationCache();
+              setCurrentLocation(null);
+            }}
+          ]
+        );
+      }
+    },
     {
       title: 'Farm Settings',
       subtitle: 'Manage farm details and preferences',
@@ -86,8 +158,21 @@ export default function Profile() {
               </View>
               <View className="flex-1">
                 <Text className="text-white text-xl font-bold">{user.name}</Text>
-                <Text className="text-green-100 text-sm">{user.location}</Text>
+                <View className="flex-row items-center">
+                  <Ionicons name="location" size={12} color="#bbf7d0" />
+                  <Text className="text-green-100 text-sm ml-1">
+                    {currentLocation?.address || user.location}
+                  </Text>
+                  {locationLoading && (
+                    <Ionicons name="refresh" size={12} color="#bbf7d0" className="ml-2 animate-spin" />
+                  )}
+                </View>
                 <Text className="text-green-100 text-xs">Member since {user.joinDate}</Text>
+                {currentLocation && (
+                  <Text className="text-green-200 text-xs">
+                    Last updated: {new Date(currentLocation.timestamp).toLocaleTimeString()}
+                  </Text>
+                )}
               </View>
               <TouchableOpacity className="w-10 h-10 bg-white/20 rounded-full items-center justify-center">
                 <Ionicons name="create-outline" size={20} color="white" />
@@ -95,20 +180,15 @@ export default function Profile() {
             </View>
           </View>
 
-          {/* Farm Stats */}
+          {/* Farm Location Map */}
           <View className="mb-6">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">Farm Overview</Text>
-            <View className="flex-row flex-wrap justify-between">
-              {stats.map((stat, index) => (
-                <View key={index} className="card w-[48%] mb-3 items-center py-4">
-                  <View className="w-12 h-12 bg-green-100 rounded-xl items-center justify-center mb-3">
-                    <Ionicons name={stat.icon as any} size={24} color="#059669" />
-                  </View>
-                  <Text className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</Text>
-                  <Text className="text-gray-600 text-sm text-center">{stat.label}</Text>
-                </View>
-              ))}
-            </View>
+            <Text className="text-lg font-semibold text-gray-900 mb-4">Farm Location</Text>
+            <LocationMap 
+              onLocationSelect={handleLocationSelect}
+              initialLocation={currentLocation || undefined}
+              height={220}
+              showMapControls={true}
+            />
           </View>
 
           {/* Farm Details */}
@@ -121,100 +201,54 @@ export default function Profile() {
                     <Ionicons name="location" size={20} color="#6b7280" />
                     <Text className="text-gray-700 ml-3">Location</Text>
                   </View>
-                  <Text className="font-semibold text-gray-900">{user.location}</Text>
+                  <View className="flex-1 items-end">
+                    <Text className="font-semibold text-gray-900 text-right">
+                      {currentLocation?.address || user.location}
+                    </Text>
+                    {currentLocation && (
+                      <View className="items-end">
+                        <Text className="text-gray-500 text-xs">
+                          {currentLocation.latitude.toFixed(4)}, {currentLocation.longitude.toFixed(4)}
+                        </Text>
+                        {currentLocation.city && currentLocation.state && (
+                          <Text className="text-gray-400 text-xs">
+                            {currentLocation.city}, {currentLocation.state}
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
                 </View>
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center">
                     <Ionicons name="resize" size={20} color="#6b7280" />
                     <Text className="text-gray-700 ml-3">Farm Size</Text>
                   </View>
-                  <Text className="font-semibold text-gray-900">{user.farmSize}</Text>
+                  <TouchableOpacity onPress={() => Alert.alert('Edit Farm Size', 'Farm size editing coming soon!')}>
+                    <Text className="font-semibold text-gray-900">{user.farmSize}</Text>
+                  </TouchableOpacity>
                 </View>
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center">
                     <Ionicons name="time" size={20} color="#6b7280" />
                     <Text className="text-gray-700 ml-3">Experience</Text>
                   </View>
-                  <Text className="font-semibold text-gray-900">{user.experience}</Text>
+                  <TouchableOpacity onPress={() => Alert.alert('Edit Experience', 'Experience editing coming soon!')}>
+                    <Text className="font-semibold text-gray-900">{user.experience}</Text>
+                  </TouchableOpacity>
                 </View>
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center">
                     <Ionicons name="leaf" size={20} color="#6b7280" />
                     <Text className="text-gray-700 ml-3">Main Crops</Text>
                   </View>
-                  <Text className="font-semibold text-gray-900">{user.crops.join(', ')}</Text>
+                  <TouchableOpacity onPress={() => Alert.alert('Edit Crops', 'Crop editing coming soon!')}>
+                    <Text className="font-semibold text-gray-900">{user.crops.join(', ')}</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
           </View>
-
-          {/* Notification Settings */}
-          <View className="mb-6">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">Notification Settings</Text>
-            <View className="card">
-              <View className="space-y-4">
-                {Object.entries(notifications).map(([key, value]) => (
-                  <View key={key} className="flex-row items-center justify-between">
-                    <View>
-                      <Text className="font-semibold text-gray-900 capitalize">
-                        {key.replace(/([A-Z])/g, ' $1').trim()}
-                      </Text>
-                      <Text className="text-gray-600 text-sm">
-                        {key === 'weather' && 'Weather alerts and forecasts'}
-                        {key === 'market' && 'Market price updates and trends'}
-                        {key === 'diseases' && 'Disease detection and prevention tips'}
-                        {key === 'recommendations' && 'Crop recommendations and advice'}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => toggleNotification(key as keyof typeof notifications)}
-                      className={`w-12 h-6 rounded-full ${
-                        value ? 'bg-green-500' : 'bg-gray-300'
-                      }`}
-                    >
-                      <View className={`w-5 h-5 bg-white rounded-full mt-0.5 ${
-                        value ? 'ml-6' : 'ml-0.5'
-                      }`} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </View>
-
-          {/* Menu Items */}
-          <View className="mb-8">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">Settings & More</Text>
-            <View className="space-y-3">
-              {menuItems.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  className="card flex-row items-center"
-                  onPress={item.onPress}
-                >
-                  <View className={`w-12 h-12 ${item.color} rounded-xl items-center justify-center mr-4`}>
-                    <Ionicons name={item.icon as any} size={24} color="white" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="font-semibold text-gray-900">{item.title}</Text>
-                    <Text className="text-gray-600 text-sm">{item.subtitle}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Logout Button */}
-          <TouchableOpacity
-            className="bg-red-500 rounded-xl py-4 items-center mb-8"
-            onPress={() => Alert.alert('Logout', 'Are you sure you want to logout?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Logout', style: 'destructive' }
-            ])}
-          >
-            <Text className="text-white font-semibold text-lg">Logout</Text>
-          </TouchableOpacity>
         </View>
         
         {/* Bottom padding for tab bar */}

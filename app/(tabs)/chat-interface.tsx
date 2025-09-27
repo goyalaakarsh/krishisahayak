@@ -166,12 +166,12 @@ export default function ChatInterface() {
   ], []);
 
   const suggestions = useMemo(() => [
-    {
-      title: 'Crop Planning',
-      description: 'Get personalized crop recommendations',
-      icon: 'leaf-outline',
-      action: 'crop_planning'
-    },
+    // {
+    //   title: 'Crop Planning',
+    //   description: 'Get personalized crop recommendations',
+    //   icon: 'leaf-outline',
+    //   action: 'crop_planning'
+    // },
     {
       title: 'Disease Diagnosis',
       description: 'Upload photo for disease identification',
@@ -184,12 +184,12 @@ export default function ChatInterface() {
       icon: 'bug-outline',
       action: 'pest_detection'
     },
-    {
-      title: 'Market Prices',
-      description: 'View current crop prices',
-      icon: 'trending-up-outline',
-      action: 'market_prices'
-    }
+    // {
+    //   title: 'Market Prices',
+    //   description: 'View current crop prices',
+    //   icon: 'trending-up-outline',
+    //   action: 'market_prices'
+    // }
   ], []);
 
   const handleSendMessage = useCallback(async () => {
@@ -602,7 +602,7 @@ export default function ChatInterface() {
 
           {/* Quick Questions - only show if no image analysis */}
           {messages.length === 1 && !params.imageUri && (
-            <View className="mb-6">
+            <View className="">
               <Text className="text-gray-600 text-sm mb-3">Quick Questions:</Text>
               <View className="space-y-2">
                 {quickQuestions.map((question, index) => (
